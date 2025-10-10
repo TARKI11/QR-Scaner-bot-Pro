@@ -2,6 +2,7 @@
 import asyncio
 import html
 import logging
+import functools
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -358,16 +359,21 @@ async def run_bot(settings_instance):
     # Устанавливаем parse_mode по умолчанию для всех ответов
     bot = Bot(token=settings_instance.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     
+    # Передаем настройки в Dispatcher для dependency injection
     dp = Dispatcher(settings=settings_instance)
 
+    # Регистрируем хэндлеры команд
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-    # Передаем и bot, и settings в обработчик
-    dp.message.register(lambda msg, bot=bot: scan_qr(msg, bot, settings_instance), F.photo)
+    
+    # ПРАВИЛЬНАЯ регистрация обработчика фото.
+    # aiogram 3 автоматически внедрит зависимости `bot` и `settings` в хэндлер `scan_qr`.
+    dp.message.register(scan_qr, F.photo)
 
-    logger.info("Starting QR Scanner Bot...")
+    logger.info("Starting QR Scanner Bot polling...")
     try:
+        # `start_polling` делает объект `bot` доступным для внедрения в хэндлеры
         await dp.start_polling(bot)
     finally:
         await bot.session.close()
