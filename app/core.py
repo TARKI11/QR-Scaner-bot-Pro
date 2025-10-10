@@ -29,6 +29,8 @@ async def tips_handler(message: Message):
     )
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
+
+
 async def handle_photo(message: Message):
     await message.reply("Я получил вашу фотографию! Сейчас попробую найти QR-код...")
 
@@ -50,5 +52,13 @@ async def scan_qr(message: Message, settings):
             response_text, keyboard = await format_qr_response(result, qr_type, settings)
             if len(response_text) > 4000:
                 response_text = response_text[:4000] + "..."
+            # Здесь твоя логика отправки ответа с QR
+        # else, если результата нет — тоже ответ пользователю
+    except Exception as e:
+        await message.answer(f"Ошибка при обработке: {e}")
 
+
+dp.message.register(start_handler, Command("start"))
+dp.message.register(help_handler, Command("help"))
+dp.message.register(tips_handler, Command("tips"))
 dp.message.register(handle_photo, F.photo)
