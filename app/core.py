@@ -300,10 +300,9 @@ async def help_handler(message: Message):
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
 # Обработчик для фотографий с QR-кодом
-@dp.message_handler(content_types=["photo"])
-async def handle_photo(message: types.Message):
 async def handle_photo(message: Message):
     await message.reply("Я получил вашу фотографию! Сейчас попробую найти QR-код...")
+
 
     try:
         # Берём последнее фото (самое большое качество)
