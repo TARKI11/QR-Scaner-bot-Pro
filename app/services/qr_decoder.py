@@ -2,49 +2,70 @@
 import logging
 import cv2
 import numpy as np
-from qreader import QReader
-
-# Инициализируем QReader один раз при запуске, чтобы не создавать его на каждое изображение
-# Это более эффективно.
-# model_size='n' (nano) - самый быстрый и легковесный вариант, идеально для сервера.
-q_reader = QReader(model_size='n')
 
 logger = logging.getLogger(__name__)
 
 def decode_qr_locally(image_bytes: bytes, settings) -> str | None:
     """
-    Декодирует QR-код из байтов изображения с помощью библиотеки QReader.
-    QReader использует OpenCV "под капотом", но с улучшенной предварительной обработкой,
-    что значительно повышает надежность распознавания.
+    Декодирует QR-код из байтов изображения с помощью OpenCV, применяя
+    методы предварительной обработки для повышения надежности.
     """
     try:
-        # Преобразуем байты в numpy array для OpenCV и QReader
+        # 1. Преобразуем байты в numpy array для OpenCV
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         if image is None:
-            logger.error("Не удалось декодировать изображение для QReader.")
+            logger.error("OpenCV не смог декодировать исходное изображение.")
             return None
 
-        # Используем QReader для обнаружения и декодирования
-        # `decode` возвращает список найденных QR-кодов.
-        decoded_qrs = q_reader.decode(image=image)
+        # 2. Улучшение изображения: Преобразование в оттенки серого
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # 3. Улучшение изображения: Адаптивная бинаризация для повышения контрастности
+        # Это помогает справиться с неравномерным освещением.
+        # `adaptiveThreshold` вычисляет порог для небольших областей изображения.
+        # Это дает лучшие результаты для изображений с разной яркостью.
+        binary_image = cv2.adaptiveThreshold(
+            gray_image, 
+            255, # Максимальное значение, которое будет присвоено пикселю
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, # Метод вычисления порога
+            cv2.THRESH_BINARY, # Тип порога
+            11, # Размер блока (окрестности пикселя)
+            2 # Константа, вычитаемая из среднего
+        )
 
-        if decoded_qrs and decoded_qrs[0] is not None:
-            # Берем содержимое первого найденного QR-кода
-            content = decoded_qrs[0]
-            logger.info(f"QReader успешно распознал QR-код. Длина содержимого: {len(content)}")
-            
-            # Применяем ограничение на длину из настроек
-            if len(content) > settings.max_qr_content_length:
-                logger.warning(f"Содержимое QR-кода было обрезано. Исходная длина: {len(content)}")
-                content = content[:settings.max_qr_content_length] + "..."
-            
-            return content
-        else:
-            logger.info("QReader не нашел QR-код или не смог его декодировать.")
-            return None
+        # 4. Инициализация детектора и распознавание
+        qr_detector = cv2.QRCodeDetector()
+        
+        # Попытка декодировать улучшенное (бинаризованное) изображение
+        data, bbox, straight_qrcode = qr_detector.detectAndDecode(binary_image)
 
-    except Exception as e:
-        logger.error(f"Произошла непредвиденная ошибка при декодировании с помощью QReader: {e}", exc_info=True)
+        if bbox is not None and len(data) > 0:
+            logger.info(f"Успешно распознано на улучшенном изображении. Длина: {len(data)}")
+            return apply_length_limit(data, settings)
+
+        # Если не получилось, пробуем на исходном сером изображении (без бинаризации)
+        # Иногда это помогает для очень чистых изображений
+        data, bbox, straight_qrcode = qr_detector.detectAndDecode(gray_image)
+        
+        if bbox is not None and len(data) > 0:
+            logger.info(f"Успешно распознано на сером изображении. Длина: {len(data)}")
+            return apply_length_limit(data, settings)
+
+        logger.info("OpenCV не нашел QR-код после всех улучшений.")
         return None
+
+    except cv2.error as e:
+        logger.error(f"Ошибка OpenCV при обработке изображения: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Произошла непредвиденная ошибка при декодировании: {e}", exc_info=True)
+        return None
+
+def apply_length_limit(data: str, settings) -> str:
+    """Применяет ограничение на длину к распознанным данным."""
+    if len(data) > settings.max_qr_content_length:
+        logger.warning(f"Содержимое QR-кода было обрезано. Исходная длина: {len(data)}")
+        return data[:settings.max_qr_content_length] + "..."
+    return data
