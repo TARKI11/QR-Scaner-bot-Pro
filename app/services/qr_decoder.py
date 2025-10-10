@@ -2,8 +2,7 @@
 import logging
 import cv2
 import numpy as np
-# from pyzbar import pyzbar # УБРАНО
-# from app.config import settings # УБРАНО, так как max_qr_content_length теперь передаётся аргументом
+# from app.config import settings # <-- УБРАНО
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +10,7 @@ def decode_qr_locally(image_bytes: bytes, settings) -> str | None:
     """
     Декодирует QR-код из байтов изображения с помощью OpenCV.
     Возвращает содержимое QR-кода или None.
+    settings передается как аргумент.
     """
     try:
         # Преобразуем байты в numpy array
@@ -25,13 +25,11 @@ def decode_qr_locally(image_bytes: bytes, settings) -> str | None:
         # Создаем детектор QR-кодов
         qr_detector = cv2.QRCodeDetector()
         # Декодируем QR-код
-        # data - строка данных, bbox - координаты границ (если найдены), straight_qrcode - изображение QR-кода
         data, bbox, straight_qrcode = qr_detector.detectAndDecode(image)
 
         if bbox is not None and len(data) > 0:
-            # bbox содержит координаты углов QR-кода, но мы его игнорируем, так как нам только содержимое
-            if len(data) > settings.max_qr_content_length: # Используем settings из аргумента
-                data = data[:settings.max_qr_content_length] + "..." # Используем settings из аргумента
+            if len(data) > settings.max_qr_content_length:
+                data = data[:settings.max_qr_content_length] + "..."
             return data
         else:
             logger.info("QR code not found or could not be decoded by OpenCV.")
