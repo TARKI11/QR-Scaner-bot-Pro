@@ -323,6 +323,30 @@ async def tips_handler(message: Message):
     )
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
+# Обработчик для фотографий с QR-кодом
+@dp.message_handler(content_types=["photo"])
+async def handle_photo(message: types.Message):
+    await message.reply("Я получил вашу фотографию! Сейчас попробую найти QR-код...")
+
+    try:
+        # Берём последнее фото (самое большое качество)
+        photo = message.photo[-1]
+        file_id = photo.file_id
+
+        # Скачиваем фото с серверов Telegram
+        file = await message.bot.get_file(file_id)
+        photo_bytes = await message.bot.download_file(file.file_path)
+
+        # Здесь должна быть функция, которая ищет QR-код
+        # Например: decoded = decode_qr_locally(photo_bytes.read(), settings)
+        # Если нет такой функции — просто отправим заглушку
+
+        # Пока просто отправим сообщение что обработка происходит
+        await message.reply("Я получил фото! Если QR-код не найдён — это пока пробная версия обработчика.")
+    except Exception as e:
+        await message.reply(f"Ошибка при обработке фото: {e}")
+
+
 async def scan_qr(message: Message, settings):
     user_id = message.from_user.id
 
