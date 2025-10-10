@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=".env", # Опционально, если используете .env локально
         env_file_encoding='utf-8',
         case_sensitive=True,
     )
@@ -33,4 +33,4 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         self.debug_mode = self.is_debug
 
-# УБРАНО: settings = Settings()
+# settings = Settings() <-- УБРАНО!
