@@ -2,8 +2,8 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from app.config import Settings
-from app.bot import router
+from app.config import Settings # Импортируем класс Settings
+from app.bot import register_handlers # Импортируем функцию регистрации
 
 # Создаем экземпляр настроек здесь, после того как все переменные окружения должны быть доступны
 settings = Settings()
@@ -21,5 +21,6 @@ dp = Dispatcher()
 async def main():
     """Main function to start the bot."""
     logger.info("Starting QR Scanner Bot...")
-    dp.include_router(router)
+    # Регистрируем handlers, передавая экземпляр настроек
+    register_handlers(dp, settings)
     await dp.start_polling(bot)
