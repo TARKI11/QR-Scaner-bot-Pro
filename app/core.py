@@ -2,8 +2,11 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from app.config import settings
+from app.config import Settings
 from app.bot import router
+
+# Создаем экземпляр настроек здесь, после того как все переменные окружения должны быть доступны
+settings = Settings()
 
 # Configure logging
 logging.basicConfig(
