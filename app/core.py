@@ -333,7 +333,7 @@ async def tips_handler(message: Message):
 # УДАЛЕН дублирующийся обработчик handle_photo
 
 async def scan_qr(message: Message, settings):
-    logger.info(f"scan_qr called for user {message.from_user.id}") # <-- Добавлено для отладки
+    logger.info(f"scan_qr called for user {message.from_user.id}")
     user_id = message.from_user.id
 
     if is_rate_limited(user_id, settings):
@@ -348,18 +348,21 @@ async def scan_qr(message: Message, settings):
             return
 
         file = await message.bot.get_file(photo.file_id)
-        logger.info(f"Got file info: {file.file_path}") # <-- Добавлено для отладки
-        file_bytes = await message.bot.download_file(file.file_path)
-        logger.info(f"Downloaded file, size: {len(file_bytes) if file_bytes else 'None'} bytes") # <-- Добавлено для отладки
+        logger.info(f"Got file info: {file.file_path}")
+        
+        # Исправлено: Сначала читаем поток в байты
+        file_stream = await message.bot.download_file(file.file_path)
+        file_bytes = file_stream.read()
+        logger.info(f"Downloaded file, size: {len(file_bytes)} bytes")
 
         result = decode_qr_locally(file_bytes, settings)
-        logger.info(f"Decoded QR result: {repr(result)}") # <-- Добавлено для отладки
+        logger.info(f"Decoded QR result: {repr(result)}")
 
         if result:
             qr_type = detect_qr_type(result)
-            logger.info(f"Detected QR type: {qr_type}") # <-- Добавлено для отладки
+            logger.info(f"Detected QR type: {qr_type}")
             response_text, keyboard = await format_qr_response(result, qr_type, settings)
-            logger.info(f"Formatted response text (first 100 chars): {repr(response_text[:100])}") # <-- Добавлено для отладки
+            logger.info(f"Formatted response text (first 100 chars): {repr(response_text[:100])}")
 
             if len(response_text) > 4000:
                 response_text = response_text[:4000] + "..."
@@ -369,11 +372,11 @@ async def scan_qr(message: Message, settings):
             else:
                 await message.answer(response_text, parse_mode="MarkdownV2")
         else:
-            logger.info("No QR code found in image.") # <-- Добавлено для отладки
+            logger.info("No QR code found in image.")
             await message.answer("❌ Не удалось распознать QR-код. Проверь картинку!")
 
     except Exception as e:
-        logger.error(f"Error processing photo from user {user_id}: {e}", exc_info=True) # <-- Добавлено exc_info=True
+        logger.error(f"Error processing photo from user {user_id}: {e}", exc_info=True)
         try:
             await message.answer("❌ Произошла ошибка при обработке изображения. Попробуйте еще раз.")
         except Exception as send_error:
