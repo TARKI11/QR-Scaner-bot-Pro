@@ -4,4 +4,4 @@ pydantic==2.11.10
 pydantic-settings==2.7.1
 opencv-python-headless==4.10.0.84
 Pillow==11.3.0
-pyzxing==1.0.6
+pyzxing==1.1.1
