@@ -7,13 +7,14 @@ from pydantic import Field
 logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
+    # Pydantic будет искать переменные окружения в любом регистре
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding='utf-8',
-        case_sensitive=False, # Pydantic будет искать переменные окружения в любом регистре
+        case_sensitive=False,
     )
 
-    # Указываем точное имя переменной окружения в верхнем регистре
+    # Указываем точное имя переменной окружения
     bot_token: str = Field(..., env="BOT_TOKEN")
     gsb_api_key: str | None = Field(default=None, env="GSB_API_KEY")
 
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # Устанавливаем debug_mode на основе environment
         self.debug_mode = self.is_debug
 
-# settings = Settings() <-- УБРАНО!
+# settings = Settings() # <-- УБРАНО! Экземпляр будет создан в main.py
