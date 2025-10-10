@@ -33,5 +33,4 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         self.debug_mode = self.is_debug
 
-# Убираем глобальный экземпляр settings
-# settings = Settings()
+# УБРАНО: settings = Settings()
