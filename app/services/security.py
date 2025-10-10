@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from urllib.parse import urlparse
 from aiohttp import ClientSession, ClientTimeout
-# from app.config import settings # УБРАНО, принимаем settings как аргумент
+# from app.config import settings # <-- УБРАНО
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +16,15 @@ CACHE_TTL = 3600  # 1 hour cache
 # Rate limiting storage
 user_requests = defaultdict(list)
 
-def is_rate_limited(user_id: int, settings) -> bool: # Принимаем settings как аргумент
-    """Check if user is rate limited."""
+def is_rate_limited(user_id: int, settings) -> bool:
+    """Check if user is rate limited. settings передается как аргумент."""
     current_time = time.time()
-    # Удаляем старые запросы за пределами окна
     user_requests[user_id] = [
         req_time for req_time in user_requests[user_id]
-        if current_time - req_time < settings.rate_limit_window # Используем settings
+        if current_time - req_time < settings.rate_limit_window
     ]
 
-    if len(user_requests[user_id]) >= settings.rate_limit_requests: # Используем settings
+    if len(user_requests[user_id]) >= settings.rate_limit_requests:
         logger.info(f"User {user_id} is rate limited.")
         return True
 
@@ -40,12 +39,13 @@ def is_valid_url(url: str) -> bool:
     except Exception:
         return False
 
-async def check_url_safety(url: str, settings) -> tuple[bool | None, str | None]: # Принимаем settings как аргумент
+async def check_url_safety(url: str, settings) -> tuple[bool | None, str | None]:
     """
     Check URL safety using Google Safe Browsing API with caching.
     Returns: (is_safe: bool, threat_type: str or None)
+    settings передается как аргумент.
     """
-    if not settings.gsb_api_key: # Используем settings
+    if not settings.gsb_api_key:
         logger.warning("GSB_API_KEY not configured, skipping safety check.")
         return (None, "API key not configured")
 
@@ -60,7 +60,7 @@ async def check_url_safety(url: str, settings) -> tuple[bool | None, str | None]
             logger.info(f"Using cached result for URL: {url[:50]}...")
             return cached_result
 
-    api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={settings.gsb_api_key}" # Используем settings
+    api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={settings.gsb_api_key}"
 
     payload = {
         "client": {
@@ -75,7 +75,7 @@ async def check_url_safety(url: str, settings) -> tuple[bool | None, str | None]
         }
     }
 
-    timeout = ClientTimeout(total=settings.request_timeout) # Используем settings
+    timeout = ClientTimeout(total=settings.request_timeout)
     try:
         async with ClientSession(timeout=timeout) as session:
             async with session.post(api_url, json=payload) as resp:
