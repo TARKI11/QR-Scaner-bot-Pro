@@ -14,20 +14,11 @@ import re
 import time
 from collections import defaultdict
 
-# Создаем экземпляр настроек здесь, после того как все переменные окружения должны быть доступны
-settings = Settings()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG if settings.is_debug else logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-async def format_qr_response(content: str, qr_type: str) -> tuple[str, InlineKeyboardMarkup | None]:
+# --- Форматирование ответов ---
+async def format_qr_response(content: str, qr_type: str, settings) -> tuple[str, InlineKeyboardMarkup | None]:
     """Format QR code response based on its type."""
     if qr_type == "url":
-        return await format_url_response(content)
+        return await format_url_response(content, settings)
     elif qr_type == "vcard":
         return format_vcard_response(content)
     elif qr_type == "mecard":
@@ -51,12 +42,12 @@ async def format_qr_response(content: str, qr_type: str) -> tuple[str, InlineKey
     else: # text
         return format_text_response(content)
 
-async def format_url_response(url: str) -> tuple[str, InlineKeyboardMarkup | None]:
+async def format_url_response(url: str, settings) -> tuple[str, InlineKeyboardMarkup | None]:
     escaped_url = escape_markdown_v2(url)
     short_url = escaped_url if len(escaped_url) <= 45 else escaped_url[:42] + '...'
     header = f"{hbold('Найдена ссылка:')}\n{short_url}\n"
 
-    is_safe, threat_info = await check_url_safety(url, settings) # Передаем settings
+    is_safe, threat_info = await check_url_safety(url, settings)
 
     if is_safe is None:
         safety_msg = f"{hbold('⚠️ Не удалось проверить безопасность')}\n{escape_markdown_v2(threat_info) if threat_info else 'Неизвестная ошибка.'}"
@@ -86,11 +77,11 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
             vcard_data['title'] = line[6:]
 
     text = f"{hbold('👤 Контакт (vCard):')}\n\n"
-    if 'name' in vcard_data: text += f"{hbold('📝 Имя:')} {escape_markdown_v2(vcard_data['name'])}\n"
-    if 'phone' in vcard_data: text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(vcard_data['phone'])}\n"
-    if 'email' in vcard_data: text += f"{hbold('📧 Email:')} {escape_markdown_v2(vcard_data['email'])}\n"
-    if 'organization' in vcard_data: text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(vcard_data['organization'])}\n"
-    if 'title' in vcard_data: text += f"{hbold('💼 Должность:')} {escape_markdown_v2(vcard_data['title'])}\n"
+    if 'name' in vcard_ text += f"{hbold('📝 Имя:')} {escape_markdown_v2(vcard_data['name'])}\n"
+    if 'phone' in vcard_ text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(vcard_data['phone'])}\n"
+    if 'email' in vcard_ text += f"{hbold('📧 Email:')} {escape_markdown_v2(vcard_data['email'])}\n"
+    if 'organization' in vcard_ text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(vcard_data['organization'])}\n"
+    if 'title' in vcard_ text += f"{hbold('💼 Должность:')} {escape_markdown_v2(vcard_data['title'])}\n"
 
     keyboard = None
     if 'phone' in vcard_data and re.match(r'^[\d\+\-\(\)\s]+$', vcard_data['phone']):
@@ -115,12 +106,12 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
 
     text = f"{hbold('👤 Контакт (MeCard):')}\n\n"
     name_parts = []
-    if 'name' in mecard_data: name_parts.append(escape_markdown_v2(mecard_data['name']))
-    elif 'first_name' in mecard_data and 'last_name' in mecard_data: name_parts.extend([escape_markdown_v2(mecard_data['first_name']), escape_markdown_v2(mecard_data['last_name'])])
+    if 'name' in mecard_ name_parts.append(escape_markdown_v2(mecard_data['name']))
+    elif 'first_name' in mecard_data and 'last_name' in mecard_ name_parts.extend([escape_markdown_v2(mecard_data['first_name']), escape_markdown_v2(mecard_data['last_name'])])
     if name_parts: text += f"{hbold('📝 Имя:')} {' '.join(name_parts)}\n"
-    if 'phone' in mecard_data: text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(mecard_data['phone'])}\n"
-    if 'email' in mecard_data: text += f"{hbold('📧 Email:')} {escape_markdown_v2(mecard_data['email'])}\n"
-    if 'organization' in mecard_data: text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(mecard_data['organization'])}\n"
+    if 'phone' in mecard_ text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(mecard_data['phone'])}\n"
+    if 'email' in mecard_ text += f"{hbold('📧 Email:')} {escape_markdown_v2(mecard_data['email'])}\n"
+    if 'organization' in mecard_ text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(mecard_data['organization'])}\n"
 
     keyboard = None
     if 'phone' in mecard_data and re.match(r'^[\d\+\-\(\)\s]+$', mecard_data['phone']):
@@ -322,47 +313,40 @@ async def tips_handler(message: Message):
     )
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
-async def scan_qr(message: Message):
+async def scan_qr(message: Message, settings):
     user_id = message.from_user.id
 
-    if is_rate_limited(user_id, settings): # Используем settings из замыкания
+    if is_rate_limited(user_id, settings):
         await message.answer("⏰ Слишком много запросов! Подождите минуту перед следующим запросом.")
         return
 
-    try: # <-- Внешний try
+    try:
         photo = message.photo[-1]
 
-        if photo.file_size and photo.file_size > settings.max_file_size: # Используем settings из замыкания
+        if photo.file_size and photo.file_size > settings.max_file_size:
             await message.answer(f"❌ Файл слишком большой! Максимальный размер: {settings.max_file_size // (1024*1024)}MB")
             return
 
         file = await message.bot.get_file(photo.file_id)
         file_bytes = await message.bot.download_file(file.file_path)
 
-        result = decode_qr_locally(file_bytes, settings) # Используем settings из замыкания
+        result = decode_qr_locally(file_bytes, settings)
 
         if result:
             qr_type = detect_qr_type(result)
-            # Вложенный try...except для format_qr_response и отправки сообщения
-            try: # <-- Вложенный try
-                response_text, keyboard = await format_qr_response(result, qr_type) # format_qr_response также использует settings через замыкание
+            response_text, keyboard = await format_qr_response(result, qr_type, settings)
 
-                if len(response_text) > 4000:
-                    response_text = response_text[:4000] + "..."
+            if len(response_text) > 4000:
+                response_text = response_text[:4000] + "..."
 
-                if keyboard:
-                    await message.answer(response_text, reply_markup=keyboard, parse_mode="MarkdownV2")
-                else:
-                    await message.answer(response_text, parse_mode="MarkdownV2")
-            except Exception as format_error: # <-- Вложенный except
-                logger.error(f"Error formatting QR response for user {user_id}: {type(format_error).__name__}: {format_error}")
-                # Fallback to simple text response
-                safe_result = hcode(result) # hcode безопаснее для fallback
-                await message.answer(f"✅ QR-код содержит:\n{safe_result}", parse_mode="MarkdownV2")
+            if keyboard:
+                await message.answer(response_text, reply_markup=keyboard, parse_mode="MarkdownV2")
+            else:
+                await message.answer(response_text, parse_mode="MarkdownV2")
         else:
             await message.answer("❌ Не удалось распознать QR-код. Проверь картинку!")
 
-    except Exception as e: # <-- Внешний except
+    except Exception as e:
         logger.error(f"Error processing photo from user {user_id}: {e}")
         try:
             await message.answer("❌ Произошла ошибка при обработке изображения. Попробуйте еще раз.")
@@ -371,14 +355,24 @@ async def scan_qr(message: Message):
 
 async def main():
     """Main function to start the bot."""
+    # Создаем экземпляр настроек ТУТ, когда переменные окружения уже должны быть доступны
+    settings_instance = Settings()
+
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(
+        level=logging.DEBUG if settings_instance.is_debug else logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     logger.info("Starting QR Scanner Bot...")
-    bot = Bot(token=settings.bot_token)
+
+    bot = Bot(token=settings_instance.bot_token)
     dp = Dispatcher()
 
     # Регистрируем handlers
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-    dp.message.register(scan_qr, F.photo)
+    # Передаем settings_instance как аргумент в scan_qr
+    dp.message.register(lambda msg: scan_qr(msg, settings_instance), F.photo)
 
     await dp.start_polling(bot)
