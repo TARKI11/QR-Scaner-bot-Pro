@@ -11,7 +11,7 @@ def escape_markdown_v2(text: str) -> str:
     # Заменяем каждый специальный символ на \ + символ
     return re.sub(f'([{re.escape(special_chars)}])', r'\\\1', text)
 
-# Примеры форматирования
+# Примеры форматирования (опционально)
 def bold(text: str) -> str:
     return f"*{escape_markdown_v2(text)}*"
 
