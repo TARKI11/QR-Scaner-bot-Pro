@@ -18,4 +18,4 @@ WORKDIR /app
 COPY . .
 
 # Указываем команду запуска
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "BOT_TOKEN=$BOT_TOKEN GSB_API_KEY=$GSB_API_KEY ... python main.py"]
