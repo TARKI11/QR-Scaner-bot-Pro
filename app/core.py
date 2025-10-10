@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
-# from app.config import settings # <-- УБРАТЬ! settings передаётся как аргумент
+# from app.config import settings # <-- УБРАНО! settings передаётся как аргумент
 # from app.config import Settings # <-- Не нужно здесь
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
@@ -15,7 +15,7 @@ import re
 import time
 from collections import defaultdict
 
-# --- Форматирование ответов (теперь принимает settings как аргумент) ---
+# --- Форматирование ответов ---
 async def format_qr_response(content: str, qr_type: str, settings) -> tuple[str, InlineKeyboardMarkup | None]:
     """Format QR code response based on its type."""
     if qr_type == "url":
@@ -48,7 +48,7 @@ async def format_url_response(url: str, settings) -> tuple[str, InlineKeyboardMa
     short_url = escaped_url if len(escaped_url) <= 45 else escaped_url[:42] + '...'
     header = f"{hbold('Найдена ссылка:')}\n{short_url}\n"
 
-    is_safe, threat_info = await check_url_safety(url, settings) # Передаём settings
+    is_safe, threat_info = await check_url_safety(url, settings)
 
     if is_safe is None:
         safety_msg = f"{hbold('⚠️ Не удалось проверить безопасность')}\n{escape_markdown_v2(threat_info) if threat_info else 'Неизвестная ошибка.'}"
@@ -62,7 +62,6 @@ async def format_url_response(url: str, settings) -> tuple[str, InlineKeyboardMa
     return text, keyboard
 
 def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
-    # Простая реализация, можно улучшить
     lines = content.split('\n')
     vcard_data = {}
     for line in lines:
@@ -78,11 +77,16 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
             vcard_data['title'] = line[6:]
 
     text = f"{hbold('👤 Контакт (vCard):')}\n\n"
-    if 'name' in vcard_ text += f"{hbold('📝 Имя:')} {escape_markdown_v2(vcard_data['name'])}\n"
-    if 'phone' in vcard_ text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(vcard_data['phone'])}\n"
-    if 'email' in vcard_ text += f"{hbold('📧 Email:')} {escape_markdown_v2(vcard_data['email'])}\n"
-    if 'organization' in vcard_ text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(vcard_data['organization'])}\n"
-    if 'title' in vcard_ text += f"{hbold('💼 Должность:')} {escape_markdown_v2(vcard_data['title'])}\n"
+    if 'name' in vcard_data:
+        text += f"{hbold('📝 Имя:')} {escape_markdown_v2(vcard_data['name'])}\n"
+    if 'phone' in vcard_data:
+        text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(vcard_data['phone'])}\n"
+    if 'email' in vcard_data:
+        text += f"{hbold('📧 Email:')} {escape_markdown_v2(vcard_data['email'])}\n"
+    if 'organization' in vcard_data:
+        text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(vcard_data['organization'])}\n"
+    if 'title' in vcard_data:
+        text += f"{hbold('💼 Должность:')} {escape_markdown_v2(vcard_data['title'])}\n"
 
     keyboard = None
     if 'phone' in vcard_data and re.match(r'^[\d\+\-\(\)\s]+$', vcard_data['phone']):
@@ -90,7 +94,6 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
     return text, keyboard
 
 def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
-    # Простая реализация, можно улучшить
     content_after_prefix = content[7:]
     mecard_data = {}
     params = content_after_prefix.split(';')
@@ -107,12 +110,18 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
 
     text = f"{hbold('👤 Контакт (MeCard):')}\n\n"
     name_parts = []
-    if 'name' in mecard_ name_parts.append(escape_markdown_v2(mecard_data['name']))
-    elif 'first_name' in mecard_data and 'last_name' in mecard_ name_parts.extend([escape_markdown_v2(mecard_data['first_name']), escape_markdown_v2(mecard_data['last_name'])])
-    if name_parts: text += f"{hbold('📝 Имя:')} {' '.join(name_parts)}\n"
-    if 'phone' in mecard_ text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(mecard_data['phone'])}\n"
-    if 'email' in mecard_ text += f"{hbold('📧 Email:')} {escape_markdown_v2(mecard_data['email'])}\n"
-    if 'organization' in mecard_ text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(mecard_data['organization'])}\n"
+    if 'name' in mecard_data:
+        name_parts.append(escape_markdown_v2(mecard_data['name']))
+    elif 'first_name' in mecard_data and 'last_name' in mecard_data:
+        name_parts.extend([escape_markdown_v2(mecard_data['first_name']), escape_markdown_v2(mecard_data['last_name'])])
+    if name_parts:
+        text += f"{hbold('📝 Имя:')} {' '.join(name_parts)}\n"
+    if 'phone' in mecard_data:
+        text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(mecard_data['phone'])}\n"
+    if 'email' in mecard_data:
+        text += f"{hbold('📧 Email:')} {escape_markdown_v2(mecard_data['email'])}\n"
+    if 'organization' in mecard_data:
+        text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(mecard_data['organization'])}\n"
 
     keyboard = None
     if 'phone' in mecard_data and re.match(r'^[\d\+\-\(\)\s]+$', mecard_data['phone']):
@@ -279,7 +288,7 @@ def detect_qr_type(content: str) -> str:
     if urlparse(content).scheme in ['http', 'https']: return "url"
     return "text"
 
-# --- Handlers (определены до run_bot) ---
+# --- Handlers ---
 async def start_handler(message: Message):
     await message.answer("👋 Отправь мне изображение с QR-кодом, и я пришлю содержимое!")
 
@@ -317,25 +326,25 @@ async def tips_handler(message: Message):
 async def scan_qr(message: Message, settings):
     user_id = message.from_user.id
 
-    if is_rate_limited(user_id, settings): # Передаём settings
+    if is_rate_limited(user_id, settings):
         await message.answer("⏰ Слишком много запросов! Подождите минуту перед следующим запросом.")
         return
 
     try:
         photo = message.photo[-1]
 
-        if photo.file_size and photo.file_size > settings.max_file_size: # Используем settings
+        if photo.file_size and photo.file_size > settings.max_file_size:
             await message.answer(f"❌ Файл слишком большой! Максимальный размер: {settings.max_file_size // (1024*1024)}MB")
             return
 
         file = await message.bot.get_file(photo.file_id)
         file_bytes = await message.bot.download_file(file.file_path)
 
-        result = decode_qr_locally(file_bytes, settings) # Передаём settings
+        result = decode_qr_locally(file_bytes, settings)
 
         if result:
             qr_type = detect_qr_type(result)
-            response_text, keyboard = await format_qr_response(result, qr_type, settings) # Передаём settings
+            response_text, keyboard = await format_qr_response(result, qr_type, settings)
 
             if len(response_text) > 4000:
                 response_text = response_text[:4000] + "..."
@@ -354,8 +363,8 @@ async def scan_qr(message: Message, settings):
         except Exception as send_error:
             logger.error(f"Failed to send error message to user {user_id}: {send_error}")
 
-# --- ОСНОВНАЯ ФУНКЦИЯ (принимает settings как аргумент, переименована) ---
-async def run_bot(settings_instance): # Переименована из main
+# --- ОСНОВНАЯ ФУНКЦИЯ ---
+async def run_bot(settings_instance):
     """Main function to start the bot."""
     logger = logging.getLogger(__name__)
     logging.basicConfig(
@@ -371,8 +380,6 @@ async def run_bot(settings_instance): # Переименована из main
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-
-    # Передаем settings_instance как аргумент в scan_qr через lambda
     dp.message.register(lambda msg: scan_qr(msg, settings_instance), F.photo)
 
     await dp.start_polling(bot)
