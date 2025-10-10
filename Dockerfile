@@ -1,21 +1,18 @@
-# Используем официальный Python образ
-FROM python:3.13-slim
+# 1. Use an official Python runtime as a parent image
+FROM python:3.11-slim
 
-# Устанавливаем необходимые системные зависимости для opencv-python-headless
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc \
-        g++ \
-        && \
-    rm -rf /var/lib/apt/lists/*
+# 2. Install the zbar library (system dependency)
+RUN apt-get update && apt-get install -y libzbar0
 
-# Устанавливаем Python зависимости
+# 3. Set the working directory in the container
+WORKDIR /app
+
+# 4. Copy the requirements file and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Создаём директорию для приложения и копируем исходный код
-WORKDIR /app
+# 5. Copy the rest of the application code
 COPY . .
 
-# Указываем команду запуска
-CMD ["sh", "-c", "BOT_TOKEN=$BOT_TOKEN GSB_API_KEY=$GSB_API_KEY ... python main.py"]
+# 6. Command to run the application
+CMD ["python3", "main.py"]
