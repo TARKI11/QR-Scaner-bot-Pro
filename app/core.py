@@ -2,18 +2,26 @@
 import asyncio
 import html
 import logging
-import functools  # <-- Импортируем functools
+import functools
+import re
+from collections import defaultdict
+from urllib.parse import urlparse, parse_qs
+
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
+
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
-from urllib.parse import urlparse, parse_qs
-import re
-from collections import defaultdict
+
+# --- Helpers ---
+def clean_phone_for_url(phone: str) -> str:
+    """Removes characters from a phone number that are invalid in a tel: URL."""
+    #Удаляет все, кроме цифр и знака +
+    return re.sub(r'[^\d+]', '', phone)
 
 # Создаем логгер на уровне модуля
 logger = logging.getLogger(__name__)
@@ -87,7 +95,8 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
 
     keyboard = None
     if phones and re.match(r'^[\d\+\-\(\)\s]+$', phones[0]):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=f"tel:{phones[0]}")]])
+        clean_phone = clean_phone_for_url(phones[0])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=f"tel:{clean_phone}")]])
     return text, keyboard
 
 def parse_semicolon_separated(text):
@@ -128,7 +137,8 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
 
     keyboard = None
     if 'phone' in mecard_data and re.match(r'^[\d\+\-\(\)\s]+$', mecard_data['phone']):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=f"tel:{mecard_data['phone']}")]])
+        clean_phone = clean_phone_for_url(mecard_data['phone'])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=f"tel:{clean_phone}")]])
     return text, keyboard
 
 def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
@@ -159,6 +169,7 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
 
 def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     try:
+        # ... (код без изменений) ...
         parsed_url = urlparse(content)
         email_address = parsed_url.path
         query_params = parse_qs(parsed_url.query)
@@ -182,7 +193,8 @@ def format_phone_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
          text = f"{hbold('📞 Неверный формат номера телефона.')}\nСодержимое: {html.escape(content)}"
          return text, None
     text = f"{hbold('📞 Телефон:')}\n{hcode(phone_number)}"
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=content)]])
+    clean_phone = clean_phone_for_url(phone_number)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=f"tel:{clean_phone}")]])
     return text, keyboard
 
 def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
@@ -198,12 +210,22 @@ def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
 
         text = f"{hbold('💬 SMS на номер:')}\n{hcode(phone)}"
         if message: text += f"\n{hbold('Текст:')} {html.escape(message)}"
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="💬 Отправить", url=content)]])
+
+        clean_phone_num = clean_phone_for_url(phone)
+        # For SMS, the URL format is sms:+123456789:body
+        sms_url = f"sms:{clean_phone_num}"
+        if message:
+            # No special encoding needed for the body in this simple case
+            sms_url += f":{message}"
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="💬 Отправить", url=sms_url)]])
     except Exception as e:
         logger.error(f"Error parsing SMS QR content: {e}")
         text = f"{hbold('💬 Не удалось распознать SMS.')}\nСодержимое: {html.escape(content[:100])}..."
         keyboard = None
     return text, keyboard
+
+# ... (остальной код без изменений) ...
 
 def format_geo_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     try:
@@ -329,14 +351,12 @@ async def run_bot(settings_instance):
     bot = Bot(token=settings_instance.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
-    # Передаем bot и settings в хэндлер `scan_qr` с помощью functools.partial
-    # Это самый надежный способ для environments с сложным asyncio-контекстом
     scan_qr_handler = functools.partial(scan_qr, bot=bot, settings=settings_instance)
 
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-    dp.message.register(scan_qr_handler, F.photo)  # <-- Регистрируем связанный хэндлер
+    dp.message.register(scan_qr_handler, F.photo)
 
     logger.info("Starting QR Scanner Bot polling...")
     try:
