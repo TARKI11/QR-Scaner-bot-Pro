@@ -4,6 +4,7 @@ import html
 import logging
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
@@ -94,7 +95,7 @@ def parse_semicolon_separated(text):
     """Безопасно парсит строку, разделенную точками с запятой, с учетом экранирования."""
     # Заменяем экранированные точки с запятой на временный уникальный маркер
     escaped_marker = '__ESCAPED_SEMICOLON__'
-    text = text.replace('\;', escaped_marker)
+    text = text.replace(r'\;', escaped_marker)
     
     parts = []
     for part in text.split(';'):
@@ -114,7 +115,7 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
         if len(parts) == 2:
             key, value = parts
             # Убираем экранирование с запятых, точек с запятой и двоеточий
-            value = value.replace('\\,', ',').replace('\\;', ';').replace('\\:', ':')
+            value = value.replace(r'\,', ',').replace(r'\;', ';').replace(r'\:', ':')
             
             key_upper = key.upper()
             if key_upper == 'N':
@@ -154,7 +155,7 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
         if len(parts) == 2:
             key, value = parts
             # Убираем экранирование
-            value = value.replace('\\;', ';').replace('\\:', ':')
+            value = value.replace(r'\;', ';').replace(r'\:', ':')
             wifi_data[key.upper()] = value
 
     ssid = wifi_data.get('S', '')
