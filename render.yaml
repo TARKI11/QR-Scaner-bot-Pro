@@ -1,26 +1,24 @@
 services:
   - type: web
     name: qr-scanner-bot
-    # Указываем тип сервиса как Docker
     env: docker
     plan: free
-    # Указываем, что образ собирается из Dockerfile в корне
     dockerfilePath: Dockerfile
     envVars:
       - key: BOT_TOKEN
-        sync: false # Установите значение вручную в интерфейсе Render
+        sync: false
       - key: GSB_API_KEY
-        sync: false # Установите значение вручную в интерфейсе Render (если используется)
+        sync: false
       - key: ENVIRONMENT
         value: production
       - key: MAX_FILE_SIZE
-        value: "10485760" # 10MB
+        value: "10485760"
       - key: MAX_QR_CONTENT_LENGTH
-        value: "2048" # 2KB
+        value: "2048"
       - key: REQUEST_TIMEOUT
-        value: "30" # seconds
+        value: "30"
       - key: RATE_LIMIT_REQUESTS
-        value: "10" # per minute
+        value: "10"
       - key: RATE_LIMIT_WINDOW
-        value: "60" # seconds
+        value: "60"
     healthCheckPath: /health
