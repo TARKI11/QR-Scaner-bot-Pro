@@ -5,7 +5,7 @@ import time
 from collections import defaultdict
 from urllib.parse import urlparse
 from aiohttp import ClientSession, ClientTimeout
-# УБРАНО: from app.config import settings
+# from app.config import settings # УБРАНО, принимаем settings как аргумент
 
 logger = logging.getLogger(__name__)
 
