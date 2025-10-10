@@ -329,7 +329,7 @@ async def scan_qr(message: Message):
         await message.answer("⏰ Слишком много запросов! Подождите минуту перед следующим запросом.")
         return
 
-    try:
+    try: # <-- Внешний try
         photo = message.photo[-1]
 
         if photo.file_size and photo.file_size > settings.max_file_size: # Используем settings из замыкания
@@ -339,23 +339,30 @@ async def scan_qr(message: Message):
         file = await message.bot.get_file(photo.file_id)
         file_bytes = await message.bot.download_file(file.file_path)
 
-    result = decode_qr_locally(file_bytes, settings) # Используем settings из замыкания
+        result = decode_qr_locally(file_bytes, settings) # Используем settings из замыкания
 
         if result:
             qr_type = detect_qr_type(result)
-            response_text, keyboard = await format_qr_response(result, qr_type) # format_qr_response также использует settings через замыкание
+            # Вложенный try...except для format_qr_response и отправки сообщения
+            try: # <-- Вложенный try
+                response_text, keyboard = await format_qr_response(result, qr_type) # format_qr_response также использует settings через замыкание
 
-            if len(response_text) > 4000:
-                response_text = response_text[:4000] + "..."
+                if len(response_text) > 4000:
+                    response_text = response_text[:4000] + "..."
 
-            if keyboard:
-                await message.answer(response_text, reply_markup=keyboard, parse_mode="MarkdownV2")
-            else:
-                await message.answer(response_text, parse_mode="MarkdownV2")
+                if keyboard:
+                    await message.answer(response_text, reply_markup=keyboard, parse_mode="MarkdownV2")
+                else:
+                    await message.answer(response_text, parse_mode="MarkdownV2")
+            except Exception as format_error: # <-- Вложенный except
+                logger.error(f"Error formatting QR response for user {user_id}: {type(format_error).__name__}: {format_error}")
+                # Fallback to simple text response
+                safe_result = hcode(result) # hcode безопаснее для fallback
+                await message.answer(f"✅ QR-код содержит:\n{safe_result}", parse_mode="MarkdownV2")
         else:
             await message.answer("❌ Не удалось распознать QR-код. Проверь картинку!")
 
-    except Exception as e:
+    except Exception as e: # <-- Внешний except
         logger.error(f"Error processing photo from user {user_id}: {e}")
         try:
             await message.answer("❌ Произошла ошибка при обработке изображения. Попробуйте еще раз.")
