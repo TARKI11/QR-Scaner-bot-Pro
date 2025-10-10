@@ -78,11 +78,11 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
             vcard_data['title'] = line[6:]
 
     text = f"{hbold('👤 Контакт (vCard):')}\n\n"
-    if 'name' in vcard_data: text += f"{hbold('📝 Имя:')} {escape_markdown_v2(vcard_data['name'])}\n"
-    if 'phone' in vcard_data: text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(vcard_data['phone'])}\n"
-    if 'email' in vcard_data: text += f"{hbold('📧 Email:')} {escape_markdown_v2(vcard_data['email'])}\n"
-    if 'organization' in vcard_data: text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(vcard_data['organization'])}\n"
-    if 'title' in vcard_data: text += f"{hbold('💼 Должность:')} {escape_markdown_v2(vcard_data['title'])}\n"
+    if 'name' in vcard_ text += f"{hbold('📝 Имя:')} {escape_markdown_v2(vcard_data['name'])}\n"
+    if 'phone' in vcard_ text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(vcard_data['phone'])}\n"
+    if 'email' in vcard_ text += f"{hbold('📧 Email:')} {escape_markdown_v2(vcard_data['email'])}\n"
+    if 'organization' in vcard_ text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(vcard_data['organization'])}\n"
+    if 'title' in vcard_ text += f"{hbold('💼 Должность:')} {escape_markdown_v2(vcard_data['title'])}\n"
 
     keyboard = None
     if 'phone' in vcard_data and re.match(r'^[\d\+\-\(\)\s]+$', vcard_data['phone']):
@@ -107,12 +107,12 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
 
     text = f"{hbold('👤 Контакт (MeCard):')}\n\n"
     name_parts = []
-    if 'name' in mecard_data: name_parts.append(escape_markdown_v2(mecard_data['name']))
-    elif 'first_name' in mecard_data and 'last_name' in mecard_data: name_parts.extend([escape_markdown_v2(mecard_data['first_name']), escape_markdown_v2(mecard_data['last_name'])])
+    if 'name' in mecard_ name_parts.append(escape_markdown_v2(mecard_data['name']))
+    elif 'first_name' in mecard_data and 'last_name' in mecard_ name_parts.extend([escape_markdown_v2(mecard_data['first_name']), escape_markdown_v2(mecard_data['last_name'])])
     if name_parts: text += f"{hbold('📝 Имя:')} {' '.join(name_parts)}\n"
-    if 'phone' in mecard_data: text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(mecard_data['phone'])}\n"
-    if 'email' in mecard_data: text += f"{hbold('📧 Email:')} {escape_markdown_v2(mecard_data['email'])}\n"
-    if 'organization' in mecard_data: text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(mecard_data['organization'])}\n"
+    if 'phone' in mecard_ text += f"{hbold('📞 Телефон:')} {escape_markdown_v2(mecard_data['phone'])}\n"
+    if 'email' in mecard_ text += f"{hbold('📧 Email:')} {escape_markdown_v2(mecard_data['email'])}\n"
+    if 'organization' in mecard_ text += f"{hbold('🏢 Организация:')} {escape_markdown_v2(mecard_data['organization'])}\n"
 
     keyboard = None
     if 'phone' in mecard_data and re.match(r'^[\d\+\-\(\)\s]+$', mecard_data['phone']):
@@ -279,7 +279,7 @@ def detect_qr_type(content: str) -> str:
     if urlparse(content).scheme in ['http', 'https']: return "url"
     return "text"
 
-# --- Handlers (определены до main) ---
+# --- Handlers (определены до run_bot) ---
 async def start_handler(message: Message):
     await message.answer("👋 Отправь мне изображение с QR-кодом, и я пришлю содержимое!")
 
@@ -354,8 +354,8 @@ async def scan_qr(message: Message, settings):
         except Exception as send_error:
             logger.error(f"Failed to send error message to user {user_id}: {send_error}")
 
-# --- ОСНОВНАЯ ФУНКЦИЯ (принимает settings как аргумент) ---
-async def main(settings_instance):
+# --- ОСНОВНАЯ ФУНКЦИЯ (принимает settings как аргумент, переименована) ---
+async def run_bot(settings_instance): # Переименована из main
     """Main function to start the bot."""
     logger = logging.getLogger(__name__)
     logging.basicConfig(
@@ -368,7 +368,7 @@ async def main(settings_instance):
     dp = Dispatcher()
 
     # Регистрируем handlers
-    dp.message.register(start_handler, Command("start")) # start_handler определена выше
+    dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
 
