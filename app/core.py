@@ -2,7 +2,7 @@
 import asyncio
 import html
 import logging
-import functools
+import functools  # <-- Импортируем functools
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -64,7 +64,6 @@ async def format_url_response(url: str, settings) -> tuple[str, InlineKeyboardMa
     return text, keyboard
 
 def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
-    # Более надежный парсинг vCard
     props = defaultdict(list)
     for line in content.splitlines():
         if ':' not in line:
@@ -73,7 +72,6 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
         key_parts = key.split(';')
         props[key_parts[0].upper()].append(value)
 
-    # Извлекаем данные
     name = props.get('FN', [''])[0]
     phones = props.get('TEL', [])
     emails = props.get('EMAIL', [])
@@ -93,21 +91,13 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
     return text, keyboard
 
 def parse_semicolon_separated(text):
-    """Безопасно парсит строку, разделенную точками с запятой, с учетом экранирования."""
-    # Заменяем экранированные точки с запятой на временный уникальный маркер
     escaped_marker = '__ESCAPED_SEMICOLON__'
     text = text.replace(r'\;', escaped_marker)
-    
-    parts = []
-    for part in text.split(';'):
-        # Возвращаем экранированные точки с запятой обратно
-        parts.append(part.replace(escaped_marker, ';'))
-        
+    parts = [part.replace(escaped_marker, ';') for part in text.split(';')]
     return parts
 
 def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     mecard_data = {}
-    # Используем кастомный парсер для корректной обработки экранированных символов
     params = parse_semicolon_separated(content.replace('MECARD:', '', 1))
     
     for param in params:
@@ -115,9 +105,7 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
         parts = param.split(':', 1)
         if len(parts) == 2:
             key, value = parts
-            # Убираем экранирование с запятых, точек с запятой и двоеточий
             value = value.replace(r'\,', ',').replace(r'\;', ';').replace(r'\:', ':')
-            
             key_upper = key.upper()
             if key_upper == 'N':
                 name_parts = value.split(',')
@@ -129,7 +117,6 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
             elif key_upper == 'ORG': mecard_data['organization'] = value
 
     text = f"{hbold('👤 Контакт (MeCard):')}\n\n"
-    
     full_name = []
     if 'first_name' in mecard_data: full_name.append(mecard_data['first_name'])
     if 'last_name' in mecard_data: full_name.append(mecard_data['last_name'])
@@ -144,10 +131,8 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=f"tel:{mecard_data['phone']}")]])
     return text, keyboard
 
-
 def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     wifi_data = {}
-    # Используем кастомный парсер
     params = parse_semicolon_separated(content.replace('WIFI:', '', 1))
 
     for param in params:
@@ -155,13 +140,12 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
         parts = param.split(':', 1)
         if len(parts) == 2:
             key, value = parts
-            # Убираем экранирование
             value = value.replace(r'\;', ';').replace(r'\:', ':')
             wifi_data[key.upper()] = value
 
     ssid = wifi_data.get('S', '')
     password = wifi_data.get('P', '')
-    auth = wifi_data.get('T', 'No encryption') # WPA/WPA2/WEP or nopass
+    auth = wifi_data.get('T', 'No encryption')
     hidden = wifi_data.get('H', 'false').lower() == 'true'
 
     text = (
@@ -171,10 +155,7 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
         f"{hbold('Тип защиты:')} {html.escape(auth)}\n"
         f"{hbold('Скрытая сеть:')} {'Да' if hidden else 'Нет'}"
     )
-    # Копирование пароля по клику - это хорошая идея, но требует другого подхода
-    # Здесь просто отображаем данные
     return text, None
-
 
 def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     try:
@@ -187,14 +168,11 @@ def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
         text = f"{hbold('✉️ E-mail:')} {hcode(email_address)}"
         if subject: text += f"\n{hbold('Тема:')} {html.escape(subject)}"
         if body: text += f"\n{hbold('Текст:')} {html.escape(body)}"
-        
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📧 Написать", url=content)]])
-
     except Exception as e:
         logger.error(f"Error parsing Email QR content: {e}")
         text = f"{hbold('✉️ Не удалось распознать Email QR-код.')}\nСодержимое: {html.escape(content[:100])}..."
         keyboard = None
-        
     return text, keyboard
 
 def format_phone_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
@@ -203,14 +181,12 @@ def format_phone_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
          logger.warning(f"Invalid phone number format in QR: {phone_number}")
          text = f"{hbold('📞 Неверный формат номера телефона.')}\nСодержимое: {html.escape(content)}"
          return text, None
-
     text = f"{hbold('📞 Телефон:')}\n{hcode(phone_number)}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=content)]])
     return text, keyboard
 
 def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     try:
-        # sms:number:message
         parts = content.replace("sms:", "", 1).split(':', 1)
         phone = parts[0]
         message = parts[1] if len(parts) > 1 else ""
@@ -222,7 +198,6 @@ def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
 
         text = f"{hbold('💬 SMS на номер:')}\n{hcode(phone)}"
         if message: text += f"\n{hbold('Текст:')} {html.escape(message)}"
-
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="💬 Отправить", url=content)]])
     except Exception as e:
         logger.error(f"Error parsing SMS QR content: {e}")
@@ -238,7 +213,6 @@ def format_geo_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
         lat, lon = parts[0], parts[1]
 
         text = f"{hbold('📍 Геопозиция:')}\nШирота: {html.escape(lat)}\nДолгота: {html.escape(lon)}"
-        
         maps_url = f"https://www.google.com/maps?q={lat},{lon}"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🗺️ Открыть на карте", url=maps_url)]])
     except Exception as e:
@@ -274,7 +248,6 @@ def detect_qr_type(content: str) -> str:
     if content_lower.startswith("geo:"): return "geo"
     if "t.me/" in content_lower or "telegram.me" in content_lower: return "telegram"
     if "wa.me/" in content_lower or "whatsapp.com" in content_lower: return "whatsapp"
-    # Проверка на URL должна быть более общей и идти позже
     if urlparse(content.strip()).scheme in ['http', 'https']: return "url"
     return "text"
 
@@ -313,9 +286,7 @@ async def scan_qr(message: Message, bot: Bot, settings):
         return
 
     try:
-        # Выбираем фото наибольшего разрешения
         photo = message.photo[-1]
-
         if photo.file_size and photo.file_size > settings.max_file_size:
             await message.answer(f"❌ Файл слишком большой. Максимальный размер: {settings.max_file_size // (1024*1024)}MB.")
             return
@@ -337,11 +308,10 @@ async def scan_qr(message: Message, bot: Bot, settings):
             response_text, keyboard = await format_qr_response(result, qr_type, settings)
             logger.info(f"Formatted response text (first 100 chars): {repr(response_text[:100])}")
 
-            # Убедимся, что текст не превышает лимиты Telegram
             if len(response_text) > 4096:
                 response_text = response_text[:4092] + "..."
 
-            await message.answer(response_text, reply_markup=keyboard) # parse_mode по умолчанию HTML
+            await message.answer(response_text, reply_markup=keyboard)
         else:
             logger.info("No QR code found in image.")
             await message.answer("❌ QR-код не найден. Попробуйте другое изображение.")
@@ -356,25 +326,21 @@ async def scan_qr(message: Message, bot: Bot, settings):
 # --- Основная функция ---
 async def run_bot(settings_instance):
     """Main function to start the bot."""
-    # Устанавливаем parse_mode по умолчанию для всех ответов
     bot = Bot(token=settings_instance.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    
-    # Передаем настройки в Dispatcher для dependency injection
-    dp = Dispatcher(settings=settings_instance)
+    dp = Dispatcher()
 
-    # Регистрируем хэндлеры команд
+    # Передаем bot и settings в хэндлер `scan_qr` с помощью functools.partial
+    # Это самый надежный способ для environments с сложным asyncio-контекстом
+    scan_qr_handler = functools.partial(scan_qr, bot=bot, settings=settings_instance)
+
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-    
-    # ПРАВИЛЬНАЯ регистрация обработчика фото.
-    # aiogram 3 автоматически внедрит зависимости `bot` и `settings` в хэндлер `scan_qr`.
-    dp.message.register(scan_qr, F.photo)
+    dp.message.register(scan_qr_handler, F.photo)  # <-- Регистрируем связанный хэндлер
 
     logger.info("Starting QR Scanner Bot polling...")
     try:
-        # `start_polling` делает объект `bot` доступным для внедрения в хэндлеры
-        await dp.start_polling(bot)
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         await bot.session.close()
         logger.info("Bot session closed.")
