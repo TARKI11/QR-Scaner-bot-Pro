@@ -232,10 +232,10 @@ def format_geo_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
         return text, keyboard
     except (ValueError, IndexError) as e:
         logger.error(f"Error parsing Geo QR content: {e}")
-        text = f"{hbold('📍 Не удалось распознать геопозицию из QR-кода.')}\nСодержимое: {escape_markdown_v2(content[:100])}..."
+        text = f"{hbold('📍 Не удалось распознать геопозицию из QR-коде.')}\nСодержимое: {escape_markdown_v2(content[:100])}..."
     except Exception as e:
         logger.error(f"Unexpected error parsing Geo QR content: {e}")
-        text = f"{hbold('📍 Не удалось распознать геопозицию из QR-кода.')}\nСодержимое: {escape_markdown_v2(content[:100])}..."
+        text = f"{hbold('📍 Не удалось распознать геопозицию из QR-коде.')}\nСодержимое: {escape_markdown_v2(content[:100])}..."
     return text, None
 
 def format_telegram_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
@@ -382,22 +382,20 @@ async def scan_qr(message: Message, settings):
 # --- ОСНОВНАЯ ФУНКЦИЯ ---
 async def run_bot(settings_instance):
     """Main function to start the bot."""
-    # Логгер внутри run_bot не нужен, так как он уже создан на уровне модуля
-    # logger = logging.getLogger(__name__) # <-- УБРАНО
-    logging.basicConfig(
-        level=logging.DEBUG if settings_instance.is_debug else logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    logger.info("Starting QR Scanner Bot inside run_bot...") # <-- Используем глобальный logger
-
     bot = Bot(token=settings_instance.bot_token)
-    dp = Dispatcher()
+    # Передаем экземпляр настроек в Dispatcher
+    dp = Dispatcher(settings=settings_instance)
 
     # Регистрируем handlers
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-    # Регистрируем ОДИН обработчик для фото - scan_qr с передачей settings
-    dp.message.register(lambda msg: scan_qr(msg, settings_instance), F.photo) # <-- Исправлено
+    # Регистрируем обработчик для фото. `settings` будут переданы автоматически.
+    dp.message.register(scan_qr, F.photo)
 
-    await dp.start_polling(bot)
+    logger.info("Starting QR Scanner Bot...")
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
+        logger.info("Bot session closed.")
