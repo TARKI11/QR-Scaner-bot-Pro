@@ -3,15 +3,16 @@ services:
     name: qr-scanner-bot
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    # Объединяем установку системной библиотеки и Python-зависимостей в одну команду
+    buildCommand: |
+      apt-get update && apt-get install -y libzbar0 && \
+      pip install -r requirements.txt
+    startCommand: python3 main.py
     envVars:
       - key: BOT_TOKEN
         sync: false # Установите значение вручную в интерфейсе Render
-        # value: "ВАШ_ТОКЕН_ЗДЕСЬ" # Не указывайте value здесь, если используете sync: false и устанавливаете в интерфейсе
       - key: GSB_API_KEY
         sync: false # Установите значение вручную в интерфейсе Render (если используется)
-        # value: "ВАШ_API_KEY_ЗДЕСЬ" # Не указывайте value здесь, если используете sync: false и устанавливаете в интерфейсе
       - key: ENVIRONMENT
         value: production
       - key: MAX_FILE_SIZE
@@ -25,5 +26,3 @@ services:
       - key: RATE_LIMIT_WINDOW
         value: "60" # seconds
     healthCheckPath: /health
-    # Указываем порт, если планируется эндпоинт /health
-    # buildCommand и startCommand уже указаны выше
