@@ -6,7 +6,6 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
 # from app.config import settings # <-- УБРАНО! settings передаётся как аргумент
-from aiogram.types import Message
 # from app.config import Settings # <-- Не нужно здесь
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
@@ -15,6 +14,9 @@ from urllib.parse import urlparse, parse_qs
 import re
 import time
 from collections import defaultdict
+
+# Создаем логгер на уровне модуля
+logger = logging.getLogger(__name__)
 
 # --- Форматирование ответов ---
 async def format_qr_response(content: str, qr_type: str, settings) -> tuple[str, InlineKeyboardMarkup | None]:
@@ -158,7 +160,8 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
 
 def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     try:
-        email_address = content[7:] # Remove mailto:
+        # Remove mailto:
+        email_address = content[7:] if content.lower().startswith("mailto:") else content
         parsed_url = urlparse(content)
         email_address = parsed_url.path
         query_params = parse_qs(parsed_url.query)
@@ -236,6 +239,7 @@ def format_geo_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
     return text, None
 
 def format_telegram_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
+    # Исправлено: Убраны лишние пробелы
     if not (content.startswith("tg://") or content.startswith("https://t.me/")):
         logger.warning(f"Invalid Telegram link format: {content}")
         text = f"{hbold('📱 Неверный формат Telegram-ссылки в QR-коде.')}\nСодержимое: {escape_markdown_v2(content)}"
@@ -252,6 +256,7 @@ def format_telegram_response(content: str) -> tuple[str, InlineKeyboardMarkup | 
 
 def format_whatsapp_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     text = f"{hbold('💬 WhatsApp ссылка:')}\n\n"
+    # Исправлено: Убраны лишние пробелы
     if content.startswith("https://wa.me/"):
         phone = content[14:]  # Remove https://wa.me/
         text += f"{hbold('📞 Номер:')} {hcode(phone)}\n\n{hbold('💡 Это ссылка для быстрого сообщения в WhatsApp')}"
@@ -281,6 +286,7 @@ def detect_qr_type(content: str) -> str:
     if content.lower().startswith("tel:"): return "phone"
     if content.lower().startswith("sms:"): return "sms"
     if content.lower().startswith("geo:"): return "geo"
+    # Исправлено: Убраны лишние пробелы
     if content.startswith("tg://") or content.startswith("https://t.me/"): return "telegram"
     if content.startswith("https://wa.me/") or content.startswith("whatsapp://"): return "whatsapp"
     if content.upper().startswith("WIFI:"): return "wifi"
@@ -296,34 +302,38 @@ async def start_handler(message: Message):
 async def help_handler(message: Message):
     help_text = (
     f"{hbold('ℹ️ QRScanerPro — помощь')}\n\n"
+    f"• Сканирует QR коды любой сложности\n"
+    f"• Мгновенно выдаёт результат\n"
+    f"• Проверяет на безопасность\n"
+    f"• Без рекламы и ограничений\n\n"
+    f"{hbold('Как использовать:')}\n"
+    f"1. Отправь фото с QR\n"
+    f"2. Получи ответ\n\n"
+    f"{hbold('Советы:')} хорошее освещение, чёткий код, до 10MB\n"
+    f"{hbold('Лимиты:')} 10 запросов/мин\n\n"
+    f"Команды: /start, /help, /tips\n\n"
+    f"Отправь фото прямо сейчас!"
+    )
+    await message.answer(help_text)
+
+async def tips_handler(message: Message):
+    tips_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💸 Оставить чаевые через CloudTips", url="https://pay.cloudtips.ru/p/221ed8a2")]
+        ]
+    )
+    tips_text = (
+        f"{hbold('💸 Оставить чаевые')}\n\n"
+        f"По СБП или картой Мир — просто и быстро.\n"
+        f"Все донаты идут на развитие бота!\n\n"
+        f"👇 Нажмите кнопку для перевода:"
     )
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
-# Обработчик для фотографий с QR-кодом
-async def handle_photo(message: Message):
-    await message.reply("Я получил вашу фотографию! Сейчас попробую найти QR-код...")
-
-
-    try:
-        # Берём последнее фото (самое большое качество)
-        photo = message.photo[-1]
-        file_id = photo.file_id
-
-        # Скачиваем фото с серверов Telegram
-        file = await message.bot.get_file(file_id)
-        photo_bytes = await message.bot.download_file(file.file_path)
-
-        # Здесь должна быть функция, которая ищет QR-код
-        # Например: decoded = decode_qr_locally(photo_bytes.read(), settings)
-        # Если нет такой функции — просто отправим заглушку
-
-        # Пока просто отправим сообщение что обработка происходит
-        await message.reply("Я получил фото! Если QR-код не найдён — это пока пробная версия обработчика.")
-    except Exception as e:
-        await message.reply(f"Ошибка при обработке фото: {e}")
-
+# УДАЛЕН дублирующийся обработчик handle_photo
 
 async def scan_qr(message: Message, settings):
+    logger.info(f"scan_qr called for user {message.from_user.id}") # <-- Добавлено для отладки
     user_id = message.from_user.id
 
     if is_rate_limited(user_id, settings):
@@ -338,13 +348,18 @@ async def scan_qr(message: Message, settings):
             return
 
         file = await message.bot.get_file(photo.file_id)
+        logger.info(f"Got file info: {file.file_path}") # <-- Добавлено для отладки
         file_bytes = await message.bot.download_file(file.file_path)
+        logger.info(f"Downloaded file, size: {len(file_bytes) if file_bytes else 'None'} bytes") # <-- Добавлено для отладки
 
         result = decode_qr_locally(file_bytes, settings)
+        logger.info(f"Decoded QR result: {repr(result)}") # <-- Добавлено для отладки
 
         if result:
             qr_type = detect_qr_type(result)
+            logger.info(f"Detected QR type: {qr_type}") # <-- Добавлено для отладки
             response_text, keyboard = await format_qr_response(result, qr_type, settings)
+            logger.info(f"Formatted response text (first 100 chars): {repr(response_text[:100])}") # <-- Добавлено для отладки
 
             if len(response_text) > 4000:
                 response_text = response_text[:4000] + "..."
@@ -354,10 +369,11 @@ async def scan_qr(message: Message, settings):
             else:
                 await message.answer(response_text, parse_mode="MarkdownV2")
         else:
+            logger.info("No QR code found in image.") # <-- Добавлено для отладки
             await message.answer("❌ Не удалось распознать QR-код. Проверь картинку!")
 
     except Exception as e:
-        logger.error(f"Error processing photo from user {user_id}: {e}")
+        logger.error(f"Error processing photo from user {user_id}: {e}", exc_info=True) # <-- Добавлено exc_info=True
         try:
             await message.answer("❌ Произошла ошибка при обработке изображения. Попробуйте еще раз.")
         except Exception as send_error:
@@ -366,17 +382,22 @@ async def scan_qr(message: Message, settings):
 # --- ОСНОВНАЯ ФУНКЦИЯ ---
 async def run_bot(settings_instance):
     """Main function to start the bot."""
-    logger = logging.getLogger(__name__)
+    # Логгер внутри run_bot не нужен, так как он уже создан на уровне модуля
+    # logger = logging.getLogger(__name__) # <-- УБРАНО
     logging.basicConfig(
         level=logging.DEBUG if settings_instance.is_debug else logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    logger.info("Starting QR Scanner Bot...")
+    logger.info("Starting QR Scanner Bot inside run_bot...") # <-- Используем глобальный logger
 
     bot = Bot(token=settings_instance.bot_token)
     dp = Dispatcher()
 
-dp.message.register(start_handler, Command("start"))
-dp.message.register(help_handler, Command("help"))
-dp.message.register(tips_handler, Command("tips"))
-dp.message.register(handle_photo, F.photo)
+    # Регистрируем handlers
+    dp.message.register(start_handler, Command("start"))
+    dp.message.register(help_handler, Command("help"))
+    dp.message.register(tips_handler, Command("tips"))
+    # Регистрируем ОДИН обработчик для фото - scan_qr с передачей settings
+    dp.message.register(lambda msg: scan_qr(msg, settings_instance), F.photo) # <-- Исправлено
+
+    await dp.start_polling(bot)
