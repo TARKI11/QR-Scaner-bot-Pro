@@ -6,10 +6,6 @@ services:
     plan: free
     # Указываем, что образ собирается из Dockerfile в корне
     dockerfilePath: Dockerfile
-    # У Render есть ограничения на размер образа для бесплатного тарифа.
-    # slim образ python:3.13 помогает уложиться в лимит.
-    # Если размер будет превышен, возможно, потребуется оптимизация Dockerfile.
-    startCommand: python main.py # Эта команда будет выполнена в контейнере
     envVars:
       - key: BOT_TOKEN
         sync: false # Установите значение вручную в интерфейсе Render
