@@ -298,7 +298,7 @@ async def scan_qr(message: Message, bot: Bot, settings):
         file_bytes = file_stream.read()
         logger.info(f"Downloaded file, size: {len(file_bytes)} bytes")
 
-        result = await decode_qr_locally(file_bytes, settings)
+        result = decode_qr_locally(file_bytes, settings)
         logger.info(f"Decoded QR result: {repr(result)}")
 
         if result:
