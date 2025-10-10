@@ -8,11 +8,12 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", # Опционально, если используете .env локально
+        env_file=".env",
         env_file_encoding='utf-8',
-        case_sensitive=True,
+        case_sensitive=False, # Pydantic будет искать переменные окружения в любом регистре
     )
 
+    # Указываем точное имя переменной окружения в верхнем регистре
     bot_token: str = Field(..., env="BOT_TOKEN")
     gsb_api_key: str | None = Field(default=None, env="GSB_API_KEY")
 
