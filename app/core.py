@@ -296,7 +296,6 @@ async def start_handler(message: Message):
 async def help_handler(message: Message):
     help_text = (
     f"{hbold('ℹ️ QRScanerPro — помощь')}\n\n"
-@@ -323,87 +29,26 @@ async def tips_handler(message: Message):
     )
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
