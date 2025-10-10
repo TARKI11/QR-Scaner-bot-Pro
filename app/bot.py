@@ -7,7 +7,8 @@ from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
-from app.config import settings
+# УБРАНО: from app.config import settings
+# ИМПОРТЫ СЕЙЧАС БУДУТ ИЗ app/core.py
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
 from app.utils.markdown import escape_markdown_v2
@@ -16,10 +17,10 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 # --- Форматирование ответов ---
-async def format_qr_response(content: str, qr_type: str) -> tuple[str, InlineKeyboardMarkup | None]:
+async def format_qr_response(content: str, qr_type: str, settings) -> tuple[str, InlineKeyboardMarkup | None]: # Передаем settings как аргумент
     """Format QR code response based on its type."""
     if qr_type == "url":
-        return await format_url_response(content)
+        return await format_url_response(content, settings)
     elif qr_type == "vcard":
         return format_vcard_response(content)
     elif qr_type == "mecard":
@@ -43,12 +44,12 @@ async def format_qr_response(content: str, qr_type: str) -> tuple[str, InlineKey
     else: # text
         return format_text_response(content)
 
-async def format_url_response(url: str) -> tuple[str, InlineKeyboardMarkup | None]:
+async def format_url_response(url: str, settings) -> tuple[str, InlineKeyboardMarkup | None]: # Передаем settings как аргумент
     escaped_url = escape_markdown_v2(url)
     short_url = escaped_url if len(escaped_url) <= 45 else escaped_url[:42] + '...'
     header = f"{hbold('Найдена ссылка:')}\n{short_url}\n"
 
-    is_safe, threat_info = await check_url_safety(url)
+    is_safe, threat_info = await check_url_safety(url, settings) # Передаем settings в check_url_safety
 
     if is_safe is None:
         safety_msg = f"{hbold('⚠️ Не удалось проверить безопасность')}\n{escape_markdown_v2(threat_info) if threat_info else 'Неизвестная ошибка.'}"
@@ -319,17 +320,17 @@ async def tips_handler(message: Message):
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
 @router.message(F.photo)
-async def scan_qr(message: Message):
+async def scan_qr(message: Message, settings): # Принимаем settings как аргумент
     user_id = message.from_user.id
 
-    if is_rate_limited(user_id):
+    if is_rate_limited(user_id, settings): # Передаем settings в is_rate_limited
         await message.answer("⏰ Слишком много запросов! Подождите минуту перед следующим запросом.")
         return
 
     try:
         photo = message.photo[-1]
 
-        if photo.file_size and photo.file_size > settings.max_file_size:
+        if photo.file_size and photo.file_size > settings.max_file_size: # Используем settings
             await message.answer(f"❌ Файл слишком большой! Максимальный размер: {settings.max_file_size // (1024*1024)}MB")
             return
 
@@ -340,7 +341,7 @@ async def scan_qr(message: Message):
 
         if result:
             qr_type = detect_qr_type(result)
-            response_text, keyboard = await format_qr_response(result, qr_type)
+            response_text, keyboard = await format_qr_response(result, qr_type, settings) # Передаем settings в format_qr_response
 
             if len(response_text) > 4000:
                 response_text = response_text[:4000] + "..."
@@ -358,3 +359,10 @@ async def scan_qr(message: Message):
             await message.answer("❌ Произошла ошибка при обработке изображения. Попробуйте еще раз.")
         except Exception as send_error:
             logger.error(f"Failed to send error message to user {user_id}: {send_error}")
+
+# --- Регистрация handlers с передачей settings ---
+def register_handlers(dp, settings_instance):
+    dp.message.register(start_handler, Command("start"))
+    dp.message.register(help_handler, Command("help"))
+    dp.message.register(tips_handler, Command("tips"))
+    dp.message.register(scan_qr, F.photo, settings=settings_instance) # Передаем settings в handler
