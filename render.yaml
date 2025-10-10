@@ -4,8 +4,6 @@ services:
     env: docker
     plan: free
     dockerfilePath: Dockerfile
-    # Передаем переменные окружения явно в команду запуска
-    startCommand: bash -c "BOT_TOKEN=$BOT_TOKEN GSB_API_KEY=$GSB_API_KEY ENVIRONMENT=$ENVIRONMENT MAX_FILE_SIZE=$MAX_FILE_SIZE MAX_QR_CONTENT_LENGTH=$MAX_QR_CONTENT_LENGTH REQUEST_TIMEOUT=$REQUEST_TIMEOUT RATE_LIMIT_REQUESTS=$RATE_LIMIT_REQUESTS RATE_LIMIT_WINDOW=$RATE_LIMIT_WINDOW python main.py"
     envVars:
       - key: BOT_TOKEN
         sync: false # Установите значение вручную в интерфейсе Render
