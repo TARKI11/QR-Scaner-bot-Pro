@@ -5,19 +5,17 @@ import os
 import sys
 from aiohttp import web
 from app.config import Settings
-from app.core import run_bot # Импортируем переименованную функцию
+from app.core import run_bot
 
 logger = logging.getLogger(__name__)
 
 # --- Функция для HTTP-сервера ---
 async def health_check(request):
-    # Простой эндпоинт для проверки работоспособности
     return web.Response(text="OK", status=200)
 
 async def init_http_server(port):
     app = web.Application()
     app.router.add_get('/health', health_check)
-    # Добавьте другие эндпоинты, если нужно
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', port)
@@ -27,10 +25,10 @@ async def init_http_server(port):
 
 # --- Основная асинхронная функция ---
 async def main_async():
-    # Проверяем переменные окружения (как и раньше)
+    # Проверяем переменные окружения
     if 'BOT_TOKEN' not in os.environ or not os.environ['BOT_TOKEN']:
         logger.error("FATAL: BOT_TOKEN is not set in environment variables!")
-        sys.exit(1) # Завершаем процесс, если токен не установлен
+        sys.exit(1)
 
     logger.info("main.py started, attempting to load settings.")
 
@@ -46,7 +44,7 @@ async def main_async():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    port = int(os.environ.get('PORT', 10000)) # Используем PORT от Render
+    port = int(os.environ.get('PORT', 10000))
     logger.info(f"Starting HTTP server on port {port}...")
 
     # Инициализируем HTTP-сервер
@@ -56,13 +54,13 @@ async def main_async():
     logger.info("Starting bot logic in background...")
     bot_task = asyncio.create_task(run_bot(settings_instance))
 
-    # Ждём завершения задачи бота (например, при KeyboardInterrupt)
+    # Ждём завершения задачи бота
     try:
         await bot_task
     except asyncio.CancelledError:
         logger.info("Bot task was cancelled.")
     finally:
-        # Останавливаем HTTP-сервер при завершении
+        # Останавливаем HTTP-сервер
         logger.info("Shutting down HTTP server...")
         await http_runner.cleanup()
         logger.info("HTTP server shut down.")
