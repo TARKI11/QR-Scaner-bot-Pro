@@ -337,7 +337,7 @@ async def scan_qr(message: Message, settings): # Принимаем settings к�
         file = await message.bot.get_file(photo.file_id)
         file_bytes = await message.bot.download_file(file.file_path)
 
-        result = decode_qr_locally(file_bytes)
+            result = decode_qr_locally(file_bytes, settings) # Передаем settings
 
         if result:
             qr_type = detect_qr_type(result)
