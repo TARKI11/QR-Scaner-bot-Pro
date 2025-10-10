@@ -1,14 +1,14 @@
 services:
   - type: web
     name: qr-scanner-bot
-    env: docker
+    env: python
     plan: free
-    dockerfilePath: Dockerfile
+    startCommand: python main.py
     envVars:
       - key: BOT_TOKEN
-        sync: false # Установите значение вручную в интерфейсе Render
+        sync: false 
       - key: GSB_API_KEY
-        sync: false # Установите значение вручную в интерфейсе Render (если используется)
+        sync: false 
       - key: ENVIRONMENT
         value: production
       - key: MAX_FILE_SIZE
