@@ -55,19 +55,19 @@ async def format_qr_response(content: str, qr_type: str, settings) -> tuple[str,
 async def format_url_response(url: str, settings) -> tuple[str, InlineKeyboardMarkup | None]:
     escaped_url = html.escape(url)
     short_url = escaped_url if len(escaped_url) <= 45 else escaped_url[:42] + '...'
-    header = f"{hbold('Найдена ссылка:')}\\n{short_url}\\n"
+    header = f"{hbold('Найдена ссылка:')}\n{short_url}\n"
 
     is_safe, threat_info = await check_url_safety(url, settings)
     threat_info_escaped = html.escape(threat_info) if threat_info else None
 
     if is_safe is None:
-        safety_msg = f"{hbold('⚠️ Не удалось проверить безопасность')}\\n{threat_info_escaped or 'Неизвестная ошибка.'}"
+        safety_msg = f"{hbold('⚠️ Не удалось проверить безопасность')}\n{threat_info_escaped or 'Неизвестная ошибка.'}"
     elif is_safe:
-        safety_msg = f"{hbold('🟢 Ссылка безопасна')}\\nПроверено через Google Safe Browsing"
+        safety_msg = f"{hbold('🟢 Ссылка безопасна')}\nПроверено через Google Safe Browsing"
     else:
-        safety_msg = f"{hbold('🚨 ОПАСНАЯ ССЫЛКА!')}\\n\\n{hbold('⚠️ Обнаружена угроза:')} {threat_info_escaped or 'Неизвестная угроза.'}\\n\\n{hbold('❌ НЕ ПЕРЕХОДИТЕ ПО ЭТОЙ ССЫЛКЕ!')}"
+        safety_msg = f"{hbold('🚨 ОПАСНАЯ ССЫЛКА!')}\n\n{hbold('⚠️ Обнаружена угроза:')} {threat_info_escaped or 'Неизвестная угроза.'}\n\n{hbold('❌ НЕ ПЕРЕХОДИТЕ ПО ЭТОЙ ССЫЛКЕ!')}"
 
-    text = f"{header}\\n{safety_msg}"
+    text = f"{header}\n{safety_msg}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🌐 Перейти по ссылке", url=url)]])
     return text, keyboard
 
@@ -86,15 +86,15 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
     org = props.get('ORG', [''])[0]
     title = props.get('TITLE', [''])[0]
 
-    text = f"{hbold('👤 Контакт (vCard):')}\\n\\n"
-    if name: text += f"{hbold('📝 Имя:')} {html.escape(name)}\\n"
-    if phones: text += f"{hbold('📞 Телефон:')} {html.escape(phones[0])}\\n"
-    if emails: text += f"{hbold('📧 Email:')} {html.escape(emails[0])}\\n"
-    if org: text += f"{hbold('🏢 Организация:')} {html.escape(org)}\\n"
-    if title: text += f"{hbold('💼 Должность:')} {html.escape(title)}\\n"
+    text = f"{hbold('👤 Контакт (vCard):')}\n\n"
+    if name: text += f"{hbold('📝 Имя:')} {html.escape(name)}\n"
+    if phones: text += f"{hbold('📞 Телефон:')} {html.escape(phones[0])}\n"
+    if emails: text += f"{hbold('📧 Email:')} {html.escape(emails[0])}\n"
+    if org: text += f"{hbold('🏢 Организация:')} {html.escape(org)}\n"
+    if title: text += f"{hbold('💼 Должность:')} {html.escape(title)}\n"
 
     keyboard = None
-    if phones and re.match(r'^[\\d\\+\\-\\(\\)\\s]+$', phones[0]):
+    if phones and re.match(r'^[\d\+\-\(\)\s]+$', phones[0]):
         clean_phone = clean_phone_for_url(phones[0])
         # URL-encode the + sign to be safe
         safe_url = f"tel:{quote(clean_phone)}"
@@ -103,7 +103,7 @@ def format_vcard_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
 
 def parse_semicolon_separated(text):
     escaped_marker = '__ESCAPED_SEMICOLON__'
-    text = text.replace(r'\\;', escaped_marker)
+    text = text.replace(r'\;', escaped_marker)
     parts = [part.replace(escaped_marker, ';') for part in text.split(';')]
     return parts
 
@@ -116,7 +116,7 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
         parts = param.split(':', 1)
         if len(parts) == 2:
             key, value = parts
-            value = value.replace(r'\\,', ',').replace(r'\\;', ';').replace(r'\\:', ':')
+            value = value.replace(r'\,', ',').replace(r'\;', ';').replace(r'\:', ':')
             key_upper = key.upper()
             if key_upper == 'N':
                 name_parts = value.split(',')
@@ -127,18 +127,18 @@ def format_mecard_response(content: str) -> tuple[str, InlineKeyboardMarkup | No
             elif key_upper == 'EMAIL': mecard_data['email'] = value
             elif key_upper == 'ORG': mecard_data['organization'] = value
 
-    text = f"{hbold('👤 Контакт (MeCard):')}\\n\\n"
+    text = f"{hbold('👤 Контакт (MeCard):')}\n\n"
     full_name = []
     if 'first_name' in mecard_data: full_name.append(mecard_data['first_name'])
     if 'last_name' in mecard_data: full_name.append(mecard_data['last_name'])
-    if full_name: text += f"{hbold('📝 Имя:')} {html.escape(' '.join(full_name))}\\n"
+    if full_name: text += f"{hbold('📝 Имя:')} {html.escape(' '.join(full_name))}\n"
 
-    if 'phone' in mecard_data: text += f"{hbold('📞 Телефон:')} {html.escape(mecard_data['phone'])}\\n"
-    if 'email' in mecard_data: text += f"{hbold('📧 Email:')} {html.escape(mecard_data['email'])}\\n"
-    if 'organization' in mecard_data: text += f"{hbold('🏢 Организация:')} {html.escape(mecard_data['organization'])}\\n"
+    if 'phone' in mecard_data: text += f"{hbold('📞 Телефон:')} {html.escape(mecard_data['phone'])}\n"
+    if 'email' in mecard_data: text += f"{hbold('📧 Email:')} {html.escape(mecard_data['email'])}\n"
+    if 'organization' in mecard_data: text += f"{hbold('🏢 Организация:')} {html.escape(mecard_data['organization'])}\n"
 
     keyboard = None
-    if 'phone' in mecard_data and re.match(r'^[\\d\\+\\-\\(\\)\\s]+$', mecard_data['phone']):
+    if 'phone' in mecard_data and re.match(r'^[\d\+\-\(\)\s]+$', mecard_data['phone']):
         clean_phone = clean_phone_for_url(mecard_data['phone'])
         safe_url = f"tel:{quote(clean_phone)}"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=safe_url)]])
@@ -153,7 +153,7 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
         parts = param.split(':', 1)
         if len(parts) == 2:
             key, value = parts
-            value = value.replace(r'\\;', ';').replace(r'\\:', ':')
+            value = value.replace(r'\;', ';').replace(r'\:', ':')
             wifi_data[key.upper()] = value
 
     ssid = wifi_data.get('S', '')
@@ -162,10 +162,10 @@ def format_wifi_response(content: str) -> tuple[str, InlineKeyboardMarkup | None
     hidden = wifi_data.get('H', 'false').lower() == 'true'
 
     text = (
-        f"{hbold('📶 Wi-Fi сеть:')}\\n"
-        f"{hbold('SSID:')} {hcode(ssid)}\\n"
-        f"{hbold('Пароль:')} {hcode(password) if password else 'Без пароля'}\\n"
-        f"{hbold('Тип защиты:')} {html.escape(auth)}\\n"
+        f"{hbold('📶 Wi-Fi сеть:')}\n"
+        f"{hbold('SSID:')} {hcode(ssid)}\n"
+        f"{hbold('Пароль:')} {hcode(password) if password else 'Без пароля'}\n"
+        f"{hbold('Тип защиты:')} {html.escape(auth)}\n"
         f"{hbold('Скрытая сеть:')} {'Да' if hidden else 'Нет'}"
     )
     return text, None
@@ -189,23 +189,23 @@ def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
             clean_url += "?" + "&".join(query_parts)
 
         text = f"{hbold('✉️ E-mail:')} {hcode(email_address)}"
-        if subject: text += f"\\n{hbold('Тема:')} {html.escape(subject)}"
-        if body: text += f"\\n{hbold('Текст:')} {html.escape(body)}"
+        if subject: text += f"\n{hbold('Тема:')} {html.escape(subject)}"
+        if body: text += f"\n{hbold('Текст:')} {html.escape(body)}"
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📧 Написать", url=clean_url)]])
     except Exception as e:
         logger.error(f"Error parsing Email QR content: {e}")
-        text = f"{hbold('✉️ Не удалось распознать Email QR-код.')}\\nСодержимое: {html.escape(content[:100])}..."
+        text = f"{hbold('✉️ Не удалось распознать Email QR-код.')}\nСодержимое: {html.escape(content[:100])}..."
         keyboard = None
     return text, keyboard
 
 def format_phone_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     phone_number = content.replace("tel:", "", 1)
-    if not re.match(r'^[\\d\\+\\-\\(\\)\\s]+$', phone_number):
+    if not re.match(r'^[\d\+\-\(\)\s]+$', phone_number):
          logger.warning(f"Invalid phone number format in QR: {phone_number}")
-         text = f"{hbold('📞 Неверный формат номера телефона.')}\\nСодержимое: {html.escape(content)}"
+         text = f"{hbold('📞 Неверный формат номера телефона.')}\nСодержимое: {html.escape(content)}"
          return text, None
-    text = f"{hbold('📞 Телефон:')}\\n{hcode(phone_number)}"
+    text = f"{hbold('📞 Телефон:')}\n{hcode(phone_number)}"
     clean_phone = clean_phone_for_url(phone_number)
     safe_url = f"tel:{quote(clean_phone)}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📱 Позвонить", url=safe_url)]])
@@ -217,13 +217,13 @@ def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
         phone = parts[0]
         message = parts[1] if len(parts) > 1 else ""
 
-        if not re.match(r'^[\\d\\+\\-\\(\\)\\s]+$', phone):
+        if not re.match(r'^[\d\+\-\(\)\s]+$', phone):
              logger.warning(f"Invalid phone number in SMS QR: {phone}")
-             text = f"{hbold('💬 Неверный формат номера в SMS.')}\\nСодержимое: {html.escape(content)}"
+             text = f"{hbold('💬 Неверный формат номера в SMS.')}\nСодержимое: {html.escape(content)}"
              return text, None
 
-        text = f"{hbold('💬 SMS на номер:')}\\n{hcode(phone)}"
-        if message: text += f"\\n{hbold('Текст:')} {html.escape(message)}"
+        text = f"{hbold('💬 SMS на номер:')}\n{hcode(phone)}"
+        if message: text += f"\n{hbold('Текст:')} {html.escape(message)}"
 
         clean_phone_num = clean_phone_for_url(phone)
         safe_phone_num = quote(clean_phone_num)
@@ -235,7 +235,7 @@ def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="💬 Отправить", url=sms_url)]])
     except Exception as e:
         logger.error(f"Error parsing SMS QR content: {e}")
-        text = f"{hbold('💬 Не удалось распознать SMS.')}\\nСодержимое: {html.escape(content[:100])}..."
+        text = f"{hbold('💬 Не удалось распознать SMS.')}\nСодержимое: {html.escape(content[:100])}..."
         keyboard = None
     return text, keyboard
 
@@ -246,28 +246,28 @@ def format_geo_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
         if len(parts) < 2: raise ValueError("Invalid geo coordinates")
         lat, lon = parts[0], parts[1]
 
-        text = f"{hbold('📍 Геопозиция:')}\\nШирота: {html.escape(lat)}\\nДолгота: {html.escape(lon)}"
+        text = f"{hbold('📍 Геопозиция:')}\nШирота: {html.escape(lat)}\nДолгота: {html.escape(lon)}"
         maps_url = f"https://www.google.com/maps?q={lat},{lon}"
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🗺️ Открыть на карте", url=maps_url)]])
     except Exception as e:
         logger.error(f"Error parsing Geo QR: {e}")
-        text = f"{hbold('📍 Не удалось распознать геопозицию.')}\\nСодержимое: {html.escape(content[:100])}..."
+        text = f"{hbold('📍 Не удалось распознать геопозицию.')}\nСодержимое: {html.escape(content[:100])}..."
         keyboard = None
     return text, keyboard
 
 def format_telegram_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
-    text = f"{hbold('📱 Ссылка Telegram:')}\\n{hcode(content)}"
+    text = f"{hbold('📱 Ссылка Telegram:')}\n{hcode(content)}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➡️ Открыть в Telegram", url=content)]])
     return text, keyboard
 
 def format_whatsapp_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
-    text = f"{hbold('💬 Ссылка WhatsApp:')}\\n{hcode(content)}"
+    text = f"{hbold('💬 Ссылка WhatsApp:')}\n{hcode(content)}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➡️ Открыть в WhatsApp", url=content)]])
     return text, keyboard
 
 def format_text_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     safe_content = hcode(content)
-    text = f"{hbold('📝 Распознанный текст:')}\\n\\n{safe_content}"
+    text = f"{hbold('📝 Распознанный текст:')}\n\n{safe_content}"
     return text, None
 
 # --- Определение типа QR ---
@@ -291,12 +291,12 @@ async def start_handler(message: Message):
 
 async def help_handler(message: Message):
     help_text = (
-        f"{hbold('ℹ️ Помощь по боту')}\\n\\n"
+        f"{hbold('ℹ️ Помощь по боту')}\n\n"
         "Я сканирую QR-коды с изображений и присылаю их содержимое. "
-        "Для безопасных ссылок я также показываю результат проверки Google Safe Browsing.\\n\\n"
-        f"{hbold('Как использовать:')}\\n"
-        "1. Отправьте мне фотографию или скриншот с QR-кодом.\\n"
-        "2. Я автоматически распознаю его и пришлю результат.\\n\\n"
+        "Для безопасных ссылок я также показываю результат проверки Google Safe Browsing.\n\n"
+        f"{hbold('Как использовать:')}\n"
+        "1. Отправьте мне фотографию или скриншот с QR-кодом.\n"
+        "2. Я автоматически распознаю его и пришлю результат.\n\n"
         "Просто, быстро и без рекламы!"
     )
     await message.answer(help_text)
@@ -304,9 +304,9 @@ async def help_handler(message: Message):
 async def tips_handler(message: Message):
     tips_keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="💸 Оставить чаевые", url="https://pay.cloudtips.ru/p/221ed8a2")]])
     tips_text = (
-        f"{hbold('Поддержать автора')}\\n\\n"
+        f"{hbold('Поддержать автора')}\n\n"
         "Если вам нравится этот бот, вы можете поблагодарить автора чаевыми. "
-        "Все средства пойдут на оплату серверов и дальнейшее развитие проекта.\\n\\n"
+        "Все средства пойдут на оплату серверов и дальнейшее развитие проекта.\n\n"
         "Спасибо за вашу поддержку! ❤️"
     )
     await message.answer(tips_text, reply_markup=tips_keyboard)
