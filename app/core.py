@@ -161,7 +161,7 @@ def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
         subject = query_params.get("subject", [""])[0]
         body = query_params.get("body", [""])[0]
 
-        text = f"{hbold('✉️ E-mail:')} {hcode(email_address)}"
+        text = f"{hbold('✉️ E-mail:')} {html.escape(email_address)}"
         if subject: text += f"\n{hbold('Тема:')} {html.escape(subject)}"
         if body: text += f"\n{hbold('Текст:')} {html.escape(body)}"
         
@@ -173,7 +173,7 @@ def format_email_response(content: str) -> tuple[str, InlineKeyboardMarkup | Non
 
 def format_phone_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
     phone_number = content.replace("tel:", "", 1)
-    text = f"{hbold('📞 Телефон:')}\n{hcode(phone_number)}"
+    text = f"{hbold('📞 Телефон:')}\n{html.escape(phone_number)}"
     return text, None # No button for phone
 
 def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]:
@@ -182,7 +182,7 @@ def format_sms_response(content: str) -> tuple[str, InlineKeyboardMarkup | None]
         phone = parts[0]
         message = parts[1] if len(parts) > 1 else ""
 
-        text = f"{hbold('💬 SMS на номер:')}\n{hcode(phone)}"
+        text = f"{hbold('💬 SMS на номер:')}\n{html.escape(phone)}"
         if message: text += f"\n{hbold('Текст:')} {html.escape(message)}"
 
     except Exception as e:
