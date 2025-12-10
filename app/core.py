@@ -43,14 +43,22 @@ async def format_qr_response(content: str, qr_type: str, settings):
 
         is_safe, info = await check_url_safety(content, settings)
         if is_safe is None:
-            safety = "Не удалось проверить безопасность"
+            safety = "⚠️ Не удалось проверить безопасность"
         elif is_safe:
-            safety = f"{hbold('Ссылка безопасна')}\nПроверено через Google Safe Browsing"
+            safety = f"{hbold('✅ Ссылка безопасна')}\nПроверено через Google Safe Browsing"
+            # Кнопка перехода, если безопасно
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Перейти ↗️", url=content)]
+            ])
         else:
-            safety = f"{hbold('ОПАСНО!')} {html.escape(info or '')}\nНе открывай!"
+            safety = f"{hbold('⛔️ ОПАСНО!')} {html.escape(info or '')}\nСсылка заблокирована."
+            # Кнопка на образовательную статью, если опасно
+            edu_link = "https://www.kaspersky.ru/resource-center/definitions/what-is-quishing"
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🛡 Как защититься от фишинга!", url=edu_link)]
+            ])
 
         text = f"{header}\n{safety}"
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Открыть", url=content)]]) if is_safe else None
         return text, keyboard
 
     # Для остальных типов просто текст (можно потом допилить)
@@ -59,14 +67,14 @@ async def format_qr_response(content: str, qr_type: str, settings):
 
 # === Хэндлеры ===
 async def start_handler(message: Message):
-    await message.answer("Кидай фотку с QR-кодом — я всё расшифрую!\n Просто, быстро и без рекламы!")
+    await message.answer("Кидай фотку с QR-кодом — я всё расшифрую!\n\nПросто, быстро и без рекламы!")
 
 async def help_handler(message: Message):
-    await message.answer("Просто отправь фото с QR-кодом — я сканирую QR-коды с изображений и присылаю их содержимое.\n Для безопасных ссылок я также показываю результат проверки Google Safe Browsing.")
+    await message.answer("Просто отправь фото с QR-кодом — я сканирую коды с изображений и присылаю их содержимое.\n\nДля безопасности я проверяю ссылки в Google Safe Browsing.")
 
 async def tips_handler(message: Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Чаевые автору ☕", url="https://pay.cloudtips.ru/p/221ed8a2")]])
-    await message.answer("Если вам нравится этот бот, вы можете поблагодарить автора чаевыми. Все средства пойдут на оплату серверов и кофе ☕", reply_markup=kb)
+    await message.answer("Если вам нравится этот бот, вы можете поблагодарить автора чаевыми.\n\nВсе средства пойдут на оплату серверов и кофе ☕", reply_markup=kb)
 
 # Главный обработчик фото
 async def handle_photo(message: Message, bot: Bot, settings):
