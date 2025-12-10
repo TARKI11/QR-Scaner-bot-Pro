@@ -1,8 +1,10 @@
 # app/core.py
 import html
 import logging
+import aiohttp
 from datetime import date
 from urllib.parse import urlparse
+from io import BytesIO
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -35,20 +37,58 @@ def detect_qr_type(content: str) -> str:
     if urlparse(content.strip()).scheme in ('http', 'https'): return "url"
     return "text"
 
+async def resolve_url(url: str) -> str:
+    """Проходит по редиректам и возвращает конечную ссылку."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.head(url, allow_redirects=True, timeout=5) as response:
+                return str(response.url)
+    except Exception:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, allow_redirects=True, timeout=5) as response:
+                    return str(response.url)
+        except Exception:
+            return url
+
 async def format_qr_response(content: str, qr_type: str, settings):
     if qr_type == "url":
-        escaped = html.escape(content)
-        short = escaped if len(escaped) <= 45 else escaped[:42] + "..."
-        header = f"{hbold('Найдена ссылка:')}\n{short}\n"
+        # 1. Сначала пытаемся раскрыть ссылку (если это сокращалка)
+        final_url = await resolve_url(content)
+        
+        # Проверяем, изменилась ли ссылка
+        was_redirected = final_url != content
+        
+        # Красиво оформляем ссылки для вывода
+        escaped_original = html.escape(content)
+        escaped_final = html.escape(final_url)
+        
+        # Если была сокращена, показываем путь
+        if was_redirected:
+            header = (
+                f"{hbold('🔗 Переадресация обнаружена!')}\n"
+                f"Оригинал: {escaped_original}\n"
+                f"⬇️\n"
+                f"Ведёт на: {hbold(escaped_final)}\n"
+            )
+        else:
+            # Обрезаем длинные ссылки только для показа
+            short_view = escaped_final if len(escaped_final) <= 50 else escaped_final[:47] + "..."
+            header = f"{hbold('Найдена ссылка:')}\n{short_view}\n"
 
-        is_safe, info = await check_url_safety(content, settings)
+        # 2. Проверяем безопасность КОНЕЧНОЙ ссылки
+        is_safe, info = await check_url_safety(final_url, settings)
+
+        keyboard = None
         if is_safe is None:
             safety = "⚠️ Не удалось проверить безопасность"
+            # Всё равно даем перейти, но с опаской
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Перейти (на свой страх и риск) ↗️", url=final_url)]])
         elif is_safe:
             safety = f"{hbold('✅ Ссылка безопасна')}\nПроверено через Google Safe Browsing"
-            # Кнопка перехода, если безопасно
+            # Кнопка перехода, если безопасно (используем final_url)
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Перейти ↗️", url=content)]
+                [InlineKeyboardButton(text="Перейти ↗️", url=final_url)]
             ])
         else:
             safety = f"{hbold('⛔️ ОПАСНО!')} {html.escape(info or '')}\nСсылка заблокирована."
@@ -61,7 +101,7 @@ async def format_qr_response(content: str, qr_type: str, settings):
         text = f"{header}\n{safety}"
         return text, keyboard
 
-    # Для остальных типов просто текст (можно потом допилить)
+    # Для остальных типов просто текст
     return f"{hbold('Содержимое QR:')}\n{hcode(content)}", None
 
 
@@ -90,11 +130,13 @@ async def handle_photo(message: Message, bot: Bot, settings):
         await message.answer("Слишком быстро! Подожди минуту.")
         return
 
+    # Отправляем статус "печатает" или "загружает фото", чтобы юзер видел активность    
+    await bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
+
     # Скачивание файла
     try:
         file = await bot.get_file(message.photo[-1].file_id)
         # Скачиваем файл в память (объект BytesIO), чтобы не засорять диск
-        from io import BytesIO
         io_obj = BytesIO()
         await bot.download_file(file.file_path, destination=io_obj)
         photo_bytes = io_obj.getvalue()
@@ -106,7 +148,16 @@ async def handle_photo(message: Message, bot: Bot, settings):
     content = decode_qr_locally(photo_bytes, settings)
     if content:
         qr_type = detect_qr_type(content)
+        # Если это URL, проверка может занять пару секунд, предупредим (опционально)
+        if qr_type == "url":
+            status_msg = await message.answer("⏳ Проверяю ссылку и редиректы...")
+        
         text, kb = await format_qr_response(content, qr_type, settings)
+        
+        # Удаляем сообщение "Проверяю...", если оно было
+        if qr_type == "url":
+            await status_msg.delete()
+
         await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
         total_scans += 1
@@ -118,7 +169,7 @@ async def handle_photo(message: Message, bot: Bot, settings):
 async def stats_handler(message: Message):
     if message.from_user.id != OWNER_ID:
         return
-    text = f"Всего сканов: {total_scans}\nСегодня: {daily_scans}\nЗа всё время ты — король QR-сканеров 👑"
+    text = f"Всего сканов: {total_scans}\nСегодня: {daily_scans}"
     await message.answer(text)
 
 
@@ -132,9 +183,6 @@ async def run_bot(settings):
     dp.message.register(tips_handler, Command("tips"))
     dp.message.register(handle_photo, F.photo)
     dp.message.register(stats_handler, Command("stats"))
-
-    # Эта строчка убирает конфликт инстансов
+   
     await bot.delete_webhook(drop_pending_updates=True)
-    
-    # ВОТ ИСПРАВЛЕНИЕ: передаем settings в polling, чтобы хендлеры его видели
     await dp.start_polling(bot, settings=settings)
