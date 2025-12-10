@@ -22,6 +22,16 @@ daily_scans = 0
 last_reset = date.today()
 OWNER_ID = 7679979587
 
+# === Вспомогательная функция: Проверка на "скучный" редирект ===
+def is_trivial_redirect(original: str, final: str) -> bool:
+    """
+    Возвращает True, если редирект неважный (например http -> https или добавление /)
+    """
+    # Убираем протоколы и слэши в конце для сравнения
+    o_clean = original.replace("http://", "").replace("https://", "").rstrip("/")
+    f_clean = final.replace("http://", "").replace("https://", "").rstrip("/")
+    return o_clean == f_clean
+
 # === Типы QR и форматирование ===
 def detect_qr_type(content: str) -> str:
     c = content.lower().strip()
@@ -52,19 +62,44 @@ async def resolve_url(url: str) -> str:
             return url
 
 async def format_qr_response(content: str, qr_type: str, settings):
-    if qr_type == "url":
-        # 1. Сначала пытаемся раскрыть ссылку (если это сокращалка)
+    # --- ОБРАБОТКА WI-FI ---
+    if qr_type == "wifi":
+        ssid = "Не указано"
+        password = None
+        clean_content = content[5:] 
+        params = clean_content.split(';')
+        
+        for param in params:
+            if param.startswith('S:'):
+                ssid = param[2:]
+            elif param.startswith('P:'):
+                password = param[2:]
+        
+        text = f"📶 {hbold('Настройки Wi-Fi')}\n\n"
+        text += f"📛 Имя сети: {html.escape(ssid)}\n"
+        
+        if password:
+            text += f"🔑 Пароль: {hcode(password)}"
+        else:
+            text += f"🔓 Пароль: {hbold('Без пароля (Открытая сеть)')}"
+            
+        return text, None
+
+    # --- ОБРАБОТКА ССЫЛОК ---
+    elif qr_type == "url":
         final_url = await resolve_url(content)
         
-        # Проверяем, изменилась ли ссылка
-        was_redirected = final_url != content
+        # Проверяем, изменилась ли ссылка и не является ли это просто сменой http на https
+        changed = final_url != content
+        trivial = is_trivial_redirect(content, final_url)
         
-        # Красиво оформляем ссылки для вывода
+        # Показываем предупреждение только если редирект РЕАЛЬНЫЙ
+        show_redirect_warning = changed and not trivial
+        
         escaped_original = html.escape(content)
         escaped_final = html.escape(final_url)
         
-        # Если была сокращена, показываем путь
-        if was_redirected:
+        if show_redirect_warning:
             header = (
                 f"{hbold('🔗 Переадресация обнаружена!')}\n"
                 f"Оригинал: {escaped_original}\n"
@@ -72,27 +107,25 @@ async def format_qr_response(content: str, qr_type: str, settings):
                 f"Ведёт на: {hbold(escaped_final)}\n"
             )
         else:
-            # Обрезаем длинные ссылки только для показа
+            # Если редиректа нет или он скучный, показываем просто конечную ссылку
+            # Обрезаем для красоты, если длинная
             short_view = escaped_final if len(escaped_final) <= 50 else escaped_final[:47] + "..."
             header = f"{hbold('Найдена ссылка:')}\n{short_view}\n"
 
-        # 2. Проверяем безопасность КОНЕЧНОЙ ссылки
+        # Проверка безопасности
         is_safe, info = await check_url_safety(final_url, settings)
 
         keyboard = None
         if is_safe is None:
             safety = "⚠️ Не удалось проверить безопасность"
-            # Всё равно даем перейти, но с опаской
             keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Перейти (на свой страх и риск) ↗️", url=final_url)]])
         elif is_safe:
             safety = f"{hbold('✅ Ссылка безопасна')}\nПроверено через Google Safe Browsing"
-            # Кнопка перехода, если безопасно (используем final_url)
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="Перейти ↗️", url=final_url)]
             ])
         else:
             safety = f"{hbold('⛔️ ОПАСНО!')} {html.escape(info or '')}\nСсылка заблокирована."
-            # Кнопка на образовательную статью, если опасно
             edu_link = "https://www.kaspersky.ru/resource-center/definitions/what-is-quishing"
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🛡 Как защититься от фишинга!", url=edu_link)]
@@ -101,7 +134,7 @@ async def format_qr_response(content: str, qr_type: str, settings):
         text = f"{header}\n{safety}"
         return text, keyboard
 
-    # Для остальных типов просто текст
+    # --- ОСТАЛЬНОЕ ---
     return f"{hbold('Содержимое QR:')}\n{hcode(content)}", None
 
 
@@ -120,23 +153,18 @@ async def tips_handler(message: Message):
 async def handle_photo(message: Message, bot: Bot, settings):
     global total_scans, daily_scans, last_reset
 
-    # Сброс ежедневной статистики
     if date.today() > last_reset:
         daily_scans = 0
         last_reset = date.today()
 
-    # Антифлуд
     if is_rate_limited(message.from_user.id, settings):
         await message.answer("Слишком быстро! Подожди минуту.")
         return
 
-    # Отправляем статус "печатает" или "загружает фото", чтобы юзер видел активность    
     await bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
 
-    # Скачивание файла
     try:
         file = await bot.get_file(message.photo[-1].file_id)
-        # Скачиваем файл в память (объект BytesIO), чтобы не засорять диск
         io_obj = BytesIO()
         await bot.download_file(file.file_path, destination=io_obj)
         photo_bytes = io_obj.getvalue()
@@ -148,13 +176,11 @@ async def handle_photo(message: Message, bot: Bot, settings):
     content = decode_qr_locally(photo_bytes, settings)
     if content:
         qr_type = detect_qr_type(content)
-        # Если это URL, проверка может занять пару секунд, предупредим (опционально)
         if qr_type == "url":
             status_msg = await message.answer("⏳ Проверяю ссылку и редиректы...")
         
         text, kb = await format_qr_response(content, qr_type, settings)
         
-        # Удаляем сообщение "Проверяю...", если оно было
         if qr_type == "url":
             await status_msg.delete()
 
