@@ -244,7 +244,7 @@ def detect_qr_type(content: str) -> str:
     if urlparse(content.strip()).scheme in ['http', 'https']: return "url"
     return "text"
 
-# --- Handlers ---
+# --- Handlers (без @dp, регистрация ниже) ---
 async def start_handler(message: Message):
     await message.answer("Отправьте мне изображение с QR-кодом, и я пришлю его содержимое!")
 
@@ -269,8 +269,6 @@ async def tips_handler(message: Message):
     )  # Починил обрезанный текст
     await message.answer(tips_text, reply_markup=tips_keyboard)
 
-# --- Новый handler для фото с QR (если его не было, теперь есть) ---
-@dp.message(F.photo)
 async def handle_photo(message: Message, bot: Bot, settings):
     global total_scans, daily_scans, last_reset
 
@@ -302,8 +300,6 @@ async def handle_photo(message: Message, bot: Bot, settings):
     else:
         await message.answer("QR-код не найден или не удалось распознать. Попробуйте другое изображение.")
 
-# --- Новый handler для /stats (только для владельца) ---
-@dp.message(Command("stats"))
 async def stats_handler(message: Message):
     if message.from_user.id != OWNER_ID:
         await message.answer("Доступ запрещён.")
@@ -317,14 +313,14 @@ async def stats_handler(message: Message):
     text = f"Всего сканов: {total_scans}\nСегодня: {daily_scans}"
     await message.answer(text)
 
-# --- Функция запуска бота (если её не было, теперь есть) ---
-async def run_bot(settings: Settings):
+# --- Функция запуска бота ---
+async def run_bot(settings):
     bot = Bot(token=settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
+    # Регистрируем handlers здесь, после создания dp
     dp.message.register(start_handler, Command("start"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
-    # Регистрируем новые handlers
     dp.message.register(handle_photo, F.photo)
     dp.message.register(stats_handler, Command("stats"))
     await dp.start_polling(bot)
