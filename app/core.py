@@ -125,7 +125,7 @@ async def format_qr_response(content: str, qr_type: str, settings):
                 [InlineKeyboardButton(text="Перейти ↗️", url=final_url)]
             ])
         else:
-            safety = f"{hbold('⛔️ ОПАСНО!')} {html.escape(info or '')}\nСсылка заблокирована."
+            safety = f"{hbold('⛔️ ОПАСНО!')} {html.escape(info or '')}\nНе переходи по ней!."
             edu_link = "https://www.kaspersky.ru/resource-center/definitions/what-is-quishing"
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🛡 Как защититься от фишинга!", url=edu_link)]
