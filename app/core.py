@@ -2,16 +2,13 @@
 import html
 import logging
 from datetime import date
-from urllib.parse import urlparse, parse_qs
-from collections import defaultdict
-
+from urllib.parse import urlparse
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
-
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
 
@@ -72,7 +69,7 @@ async def tips_handler(message: Message):
     await message.answer("Если бот полезный — можешь сказать спасибо.\nВсё идёт на сервера и кофе ☕", reply_markup=kb)
 
 # Главный обработчик фото
-async def handle_photo(message: Message, bot: Bot, settings):  # ← settings обязателен
+async def handle_photo(message: Message, bot: Bot, settings):
     global total_scans, daily_scans, last_reset
 
     # Сброс ежедневной статистики
@@ -85,8 +82,18 @@ async def handle_photo(message: Message, bot: Bot, settings):  # ← settings о
         await message.answer("Слишком быстро! Подожди минуту.")
         return
 
-    file = await bot.get_file(message.photo[-1].file_id)
-    photo_bytes = await bot.download_file(file.file_path)
+    # Скачивание файла
+    try:
+        file = await bot.get_file(message.photo[-1].file_id)
+        # Скачиваем файл в память (объект BytesIO), чтобы не засорять диск
+        from io import BytesIO
+        io_obj = BytesIO()
+        await bot.download_file(file.file_path, destination=io_obj)
+        photo_bytes = io_obj.getvalue()
+    except Exception as e:
+        logger.error(f"Ошибка при скачивании фото: {e}")
+        await message.answer("Не удалось скачать фото.")
+        return
 
     content = decode_qr_locally(photo_bytes, settings)
     if content:
@@ -120,4 +127,6 @@ async def run_bot(settings):
 
     # Эта строчка убирает конфликт инстансов
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    
+    # ВОТ ИСПРАВЛЕНИЕ: передаем settings в polling, чтобы хендлеры его видели
+    await dp.start_polling(bot, settings=settings)
