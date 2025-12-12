@@ -15,6 +15,8 @@ from aiogram.filters import Command
 from aiogram.utils.markdown import hbold, hcode
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
+from aiogram.types import BufferedInputFile
+from app.services.generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +220,29 @@ async def stats_handler(message: Message):
     text = f"Всего сканов: {total_scans}\nСегодня: {daily_scans}"
     await message.answer(text)
 
+# === Хэндлер для генерации QR ===
+async def generate_handler(message: Message, command: Command):
+    # command.args - это текст после команды /qr
+    if not command.args:
+        await message.answer("Пожалуйста, напиши текст после команды.\nПример: /qr Привет")
+        return
+
+    await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
+
+    try:
+        # Рисуем QR (это быстро, можно без run_in_executor)
+        photo_io = generate_qr_code(command.args)
+        
+        # Отправляем
+        photo_file = BufferedInputFile(photo_io.getvalue(), filename="qr.png")
+        await message.answer_photo(
+            photo=photo_file, 
+            caption=f"✅ Вот твой QR-код для текста:\n{hcode(command.args)}"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка генерации: {e}")
+        await message.answer("Произошла ошибка при создании QR-кода.")
+
 
 # === Запуск бота ===
 async def run_bot(settings):
@@ -225,6 +250,7 @@ async def run_bot(settings):
     dp = Dispatcher()
 
     dp.message.register(start_handler, Command("start"))
+    dp.message.register(generate_handler, Command("qr"))
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
     dp.message.register(handle_photo, F.photo)
