@@ -245,7 +245,7 @@ async def cmd_qr_handler(message: Message, command: CommandObject, state: FSMCon
     else:
         await state.set_state(GenQR.waiting_for_text)
         await message.answer(
-            "✍️ **Введите текст или ссылку** для QR-кода:",
+            "✍️ Введите текст или ссылку для QR-кода:",
             reply_markup=get_cancel_kb()
         )
 
