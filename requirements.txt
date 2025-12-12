@@ -4,3 +4,4 @@ pydantic-settings>=2.4.0
 python-dotenv>=1.0.0
 Pillow>=10.3.0
 pyzbar==0.1.9
+qrcode>=7.4.2
