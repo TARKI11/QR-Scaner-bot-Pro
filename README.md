@@ -4,8 +4,8 @@
 
 [![Telegram](https://img.shields.io/badge/Telegram-@qrskanerpro__bot-blue?style=for-the-badge&logo=telegram)](https://t.me/qrskanerpro_bot)
 
-**Интеллектуальный сканер QR-кодов в Telegram**  
-**Intelligent QR code scanner in Telegram**
+**Интеллектуальный сканер и генератор QR-кодов в Telegram**  
+**Intelligent QR code scanner & generator in Telegram**
 
 </div>
 
@@ -15,25 +15,23 @@
 
 ### 🌟 Что это?
 
-**TG QR Scanner Bot** — быстрый и надёжный Telegram-бот для сканирования QR-кодов. Просто отправь фото, и бот мгновенно распознает содержимое!
+**QR Scanner Pro Bot** — мощный инструмент для работы с QR-кодами прямо в Telegram. Бот не только мгновенно распознает коды с фото, но и умеет создавать их, а также проверять ссылки на безопасность.
 
 ### ✨ Возможности
 
-🔍 **Мгновенное распознавание** — результат за секунды  
-📸 **Любые форматы** — JPG, PNG, WEBP и другие  
-🔗 **Умная обработка** — URL, текст, контакты  
-🛡️ **Проверка безопасности** — защита от фишинга и вирусов через Google Safe Browsing API  
-🚀 **Без регистрации** — начни пользоваться сразу  
-🆓 **Абсолютно бесплатно** — без подписок и рекламы  
-🔒 **Приватность** — изображения не сохраняются  
-⚡ **Высокая скорость** — обработка в доли секунды  
+📷 **Сканирование** — мгновенное распознавание фото с камерой или из галереи  
+✏️ **Генерация** — создание QR-кодов из текста или ссылок через удобное меню  
+📶 **Wi-Fi парсер** — показывает имя сети и пароль в удобном виде (можно сразу копировать)  
+🔗 **Анти-Фишинг** — проверка ссылок через Google Safe Browsing API  
+⚠️ **Проверка редиректов** — бот покажет, куда на самом деле ведет ссылка (защита от скрытых переходов)  
+🛡️ **Приватность** — фото обрабатываются в памяти и не сохраняются на диске  
+🚀 **Бесплатно** — никаких подписок и рекламы  
 
-### 🚀 Как запустить
+### 🚀 Как пользоваться
 
-1. Открой бота: [@qrskanerpro_bot](https://t.me/qrskanerpro_bot)
-2. Нажми `/start`
-3. Отправь фото с QR-кодом
-4. Получи результат!
+1. **Открыть бота:** [@qrskanerpro_bot](https://t.me/qrskanerpro_bot) и нажать `/start`
+2. **Чтобы считать код:** Просто отправь фото.
+3. **Чтобы создать код:** Выбери в меню команду `/qr` (или напиши `/qr ТвойТекст`).
 
 ---
 
@@ -41,29 +39,29 @@
 
 ### 🌟 What is it?
 
-**TG QR Scanner Bot** is a fast and reliable Telegram bot for scanning QR codes. Just send a photo, and the bot will instantly recognize its content!
+**QR Scanner Pro Bot** is a powerful tool for working with QR codes directly in Telegram. The bot instantly recognizes codes from photos, creates new ones, and checks links for safety.
 
 ### ✨ Features
 
-🔍 **Instant recognition** — results in seconds  
-📸 **Any format** — JPG, PNG, WEBP and more  
-🔗 **Smart processing** — URLs, text, contacts  
-🛡️ **Security check** — protection from phishing and viruses via Google Safe Browsing API  
-🚀 **No registration** — start using right away  
-🆓 **Completely free** — no subscriptions or ads  
-🔒 **Privacy** — images are not stored  
-⚡ **High speed** — processing in milliseconds  
+📷 **Scanning** — instant recognition from camera or gallery photos  
+✏️ **Generation** — create QR codes from text or links via a user-friendly menu  
+📶 **Wi-Fi Parser** — displays SSID and password in a copy-friendly format  
+🔗 **Anti-Phishing** — link safety check via Google Safe Browsing API  
+⚠️ **Redirect Analysis** — reveals the true destination of shortened links  
+🛡️ **Privacy** — photos are processed in memory and never saved to disk  
+🚀 **Free** — no subscriptions or ads  
 
-### 🚀 How to start
+### 🚀 How to use
 
-1. Open the bot: [@qrskanerpro_bot](https://t.me/qrskanerpro_bot)
-2. Press `/start`
-3. Send a photo with a QR code
-4. Get the result!
+1. **Open the bot:** [@qrskanerpro_bot](https://t.me/qrskanerpro_bot) and press `/start`
+2. **To scan:** Just send a photo.
+3. **To generate:** Select `/qr` from the menu (or type `/qr YourText`).
 
 ---
 
 <div align="center">
+
+**Tech Stack:** Python 3.11 • Aiogram 3 • Docker • Pyzbar • Render
 
 **Made with ❤️ for Telegram users**
 
