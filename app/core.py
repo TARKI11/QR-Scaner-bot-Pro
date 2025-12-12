@@ -12,6 +12,10 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, BufferedInputFile
 from aiogram.utils.markdown import hbold, hcode
 from app.services.qr_decoder import decode_qr_locally
 from app.services.security import is_rate_limited, check_url_safety
@@ -19,6 +23,17 @@ from aiogram.types import BufferedInputFile
 from app.services.generator import generate_qr_code
 
 logger = logging.getLogger(__name__)
+
+# === Состояния для диалога ===
+class GenQR(StatesGroup):
+    waiting_for_text = State()
+
+# === Кнопка отмены ===
+def get_cancel_kb():
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="❌ Отмена")]],
+        resize_keyboard=True
+    )
 
 # === Статистика ===
 total_scans = 0
@@ -221,27 +236,44 @@ async def stats_handler(message: Message):
     await message.answer(text)
 
 # === Хэндлер для генерации QR ===
-async def generate_handler(message: Message, command: Command):
-    # command.args - это текст после команды /qr
-    if not command.args:
-        await message.answer("Пожалуйста, напиши текст после команды.\nПример: /qr Привет")
+# 1. Ловит команду /qr
+async def cmd_qr_handler(message: Message, command: CommandObject, state: FSMContext):
+    # Если пользователь ввел /qr ТЕКСТ
+    if command.args:
+        await generate_and_send_qr(message, command.args)
+    # Если просто нажал /qr в меню
+    else:
+        await state.set_state(GenQR.waiting_for_text)
+        await message.answer(
+            "✍️ **Введите текст или ссылку** для QR-кода:",
+            reply_markup=get_cancel_kb()
+        )
+
+# 2. Ловит текст, когда бот в режиме ожидания
+async def process_qr_text_input(message: Message, state: FSMContext):
+    if message.text == "❌ Отмена":
+        await state.clear()
+        await message.answer("Отменено.", reply_markup=ReplyKeyboardRemove())
         return
 
-    await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
+    await generate_and_send_qr(message, message.text)
+    await state.clear()
 
+# 3. Общая функция рисования (чтобы не дублировать код)
+async def generate_and_send_qr(message: Message, text: str):
+    await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
     try:
-        # Рисуем QR (это быстро, можно без run_in_executor)
-        photo_io = generate_qr_code(command.args)
-        
-        # Отправляем
+        photo_io = generate_qr_code(text)
         photo_file = BufferedInputFile(photo_io.getvalue(), filename="qr.png")
+        # ReplyKeyboardRemove уберет кнопку Отмена, если она была
         await message.answer_photo(
             photo=photo_file, 
-            caption=f"✅ Вот твой QR-код для текста:\n{hcode(command.args)}"
+            caption=f"✅ Готово:\n{hcode(text[:100])}",
+            reply_markup=ReplyKeyboardRemove() 
         )
     except Exception as e:
         logger.error(f"Ошибка генерации: {e}")
-        await message.answer("Произошла ошибка при создании QR-кода.")
+        await message.answer("Ошибка генерации.", reply_markup=ReplyKeyboardRemove())
 
 
 # === Запуск бота ===
@@ -250,7 +282,8 @@ async def run_bot(settings):
     dp = Dispatcher()
 
     dp.message.register(start_handler, Command("start"))
-    dp.message.register(generate_handler, Command("qr"))
+    dp.message.register(cmd_qr_handler, Command("qr"))
+    dp.message.register(process_qr_text_input, GenQR.waiting_for_text)
     dp.message.register(help_handler, Command("help"))
     dp.message.register(tips_handler, Command("tips"))
     dp.message.register(handle_photo, F.photo)
