@@ -2,6 +2,8 @@
 import html
 import logging
 import aiohttp
+import asyncio
+from functools import partial
 from datetime import date
 from urllib.parse import urlparse
 from io import BytesIO
@@ -153,43 +155,61 @@ async def tips_handler(message: Message):
 async def handle_photo(message: Message, bot: Bot, settings):
     global total_scans, daily_scans, last_reset
 
+    # Сброс статистики раз в день
     if date.today() > last_reset:
         daily_scans = 0
         last_reset = date.today()
 
+    # Защита от спама
     if is_rate_limited(message.from_user.id, settings):
         await message.answer("Слишком быстро! Подожди минуту.")
         return
 
-    await bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
+    # Показываем статус "печатает..."
+    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
     try:
+        # Скачиваем фото
         file = await bot.get_file(message.photo[-1].file_id)
         io_obj = BytesIO()
         await bot.download_file(file.file_path, destination=io_obj)
         photo_bytes = io_obj.getvalue()
     except Exception as e:
-        logger.error(f"Ошибка при скачивании фото: {e}")
-        await message.answer("Не удалось скачать фото.")
+        logger.error(f"Ошибка скачивания: {e}")
+        await message.answer("Не удалось скачать фото 😔")
         return
 
-    content = decode_qr_locally(photo_bytes, settings)
+    # Запускаем распознавание в отдельном потоке, чтобы бот не зависал
+    loop = asyncio.get_running_loop()
+    content = await loop.run_in_executor(
+        None, 
+        partial(decode_qr_locally, photo_bytes, settings)
+    )
+    # -----------------------------
+
     if content:
         qr_type = detect_qr_type(content)
+        
+        # Если это ссылка, напишем "Проверяю...", так как это может занять время
+        status_msg = None
         if qr_type == "url":
-            status_msg = await message.answer("⏳ Проверяю ссылку и редиректы...")
+            status_msg = await message.answer("⏳ Проверяю ссылку на вирусы...")
         
         text, kb = await format_qr_response(content, qr_type, settings)
         
-        if qr_type == "url":
-            await status_msg.delete()
+        # Удаляем сообщение "Проверяю...", если оно было
+        if status_msg:
+            try:
+                await status_msg.delete()
+            except:
+                pass
 
         await message.answer(text, reply_markup=kb, parse_mode=ParseMode.HTML)
 
         total_scans += 1
         daily_scans += 1
     else:
-        await message.answer("QR-код не найден 😔 Попробуй другое фото.")
+        await message.answer("QR-код не найден на этом фото 😔 Попробуй сделать кадр четче.")
 
 # Статистика только для тебя
 async def stats_handler(message: Message):
