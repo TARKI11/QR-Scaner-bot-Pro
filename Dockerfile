@@ -1,18 +1,25 @@
-# 1. Use an official Python runtime as a parent image
+# 1. Берем легкую версию Python
 FROM python:3.11-slim
 
-# 2. Install the zbar library (system dependency)
-RUN apt-get update && apt-get install -y libzbar0
+# 2. Настройки, чтобы логи показывались сразу и Python не создавал мусорные файлы
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# 3. Set the working directory in the container
+# 3. Устанавливаем библиотеку для чтения QR-кодов (системная часть)
+# Без этого шага zbar не будет работать на сервере!
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libzbar0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# 4. Создаем рабочую папку
 WORKDIR /app
 
-# 4. Copy the requirements file and install Python dependencies
+# 5. Сначала копируем только список библиотек (для ускорения установки)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy the rest of the application code
+# 6. Теперь копируем весь остальной код
 COPY . .
 
-# 6. Command to run the application
+# 7. Запускаем бота
 CMD ["python3", "main.py"]
